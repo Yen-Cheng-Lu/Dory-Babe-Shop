@@ -45,9 +45,51 @@
    - Build output directory: `dist`
    - Framework preset: `Vite`（可選，有助於自動偵測）
 
+### D1 資料庫設定（商品儲存）
+
+商品資料已從 localStorage 遷移至 Cloudflare D1 資料庫。請依下列步驟設定：
+
+1. **建立 D1 資料庫**
+   ```bash
+   npm run db:create
+   ```
+   或手動執行：`npx wrangler d1 create dory-babe-shop-db`
+
+2. **取得 database_id**  
+   執行後會輸出類似以下內容，複製 `database_id`：
+   ```json
+   {
+     "database_name": "dory-babe-shop-db",
+     "database_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+   }
+   ```
+
+3. **更新 wrangler.jsonc**  
+   將 `YOUR_DATABASE_ID` 替換為上一步取得的 `database_id`。
+
+4. **執行資料庫遷移**
+   ```bash
+   npm run db:migrate:remote
+   ```
+
+5. **部署**  
+   完成後執行 `npm run deploy` 部署至 Cloudflare Pages。
+
+### localStorage 遷移
+
+若您先前使用 localStorage 儲存商品，部署後請：
+
+1. 開啟商品管理後台（`/admin`）
+2. 若偵測到 localStorage 有資料，會顯示「遷移至 D1」按鈕
+3. 點擊後即可將資料一鍵遷移至 D1 資料庫
+
+### 重要：純靜態部署
+
+目前為純靜態部署（不含 Gemini API 後端）。若需 Gemini API 代理，請在終端機執行 `npm install` 同步 lock 檔後，再恢復 `functions` 資料夾與 `wrangler.toml`。
+
 ### 設定 GEMINI_API_KEY（若使用 AI 功能）
 
-1. 前往 **Workers & Pages** → **Dory-Babe-Shop** → **Settings** → **Environment variables**
+1. 前往 **Workers & Pages** → **dory-babe-shop** → **Settings** → **Environment variables**
 2. 點擊 **Add** → **Encrypt**（建立 Secret）
 3. 變數名稱：`GEMINI_API_KEY`
 4. 值：你的 Gemini API Key

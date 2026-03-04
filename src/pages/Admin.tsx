@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Product } from "../types";
-import { getProducts, addProduct, updateProduct, deleteProduct, reorderProducts } from "../services/api";
-import { Plus, Trash2, Pencil, Loader2, Package, ChevronUp, ChevronDown } from "lucide-react";
+import { getProducts, addProduct, updateProduct, deleteProduct, reorderProducts, migrateFromLocalStorage } from "../services/api";
+import { Plus, Trash2, Pencil, Loader2, Package, ChevronUp, ChevronDown, Database } from "lucide-react";
 import ImageUpload from "../components/ImageUpload";
 
 export default function Admin() {
@@ -10,7 +10,9 @@ export default function Admin() {
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
-  
+  const [hasLocalStorageData, setHasLocalStorageData] = useState(false);
+  const [migrating, setMigrating] = useState(false);
+
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -24,6 +26,12 @@ export default function Admin() {
 
   useEffect(() => {
     fetchProducts();
+    try {
+      const data = localStorage.getItem("dory_babe_products");
+      setHasLocalStorageData(!!data && JSON.parse(data || "[]").length > 0);
+    } catch {
+      setHasLocalStorageData(false);
+    }
   }, []);
 
   const fetchProducts = async () => {
@@ -137,6 +145,22 @@ export default function Admin() {
     }
   };
 
+  const handleMigrate = async () => {
+    if (!hasLocalStorageData) return;
+    setMigrating(true);
+    try {
+      const { migrated } = await migrateFromLocalStorage();
+      setHasLocalStorageData(false);
+      await fetchProducts();
+      alert(`成功將 ${migrated} 筆商品從 localStorage 遷移至 D1 資料庫！`);
+    } catch (err) {
+      console.error(err);
+      alert("遷移失敗：" + (err instanceof Error ? err.message : "未知錯誤"));
+    } finally {
+      setMigrating(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-stone-100 p-4 sm:p-8 font-sans">
       <div className="max-w-5xl mx-auto">
@@ -144,6 +168,24 @@ export default function Admin() {
           <Package className="w-8 h-8 text-stone-800" />
           <h1 className="text-3xl font-bold text-stone-800 tracking-tight">商品管理後台</h1>
         </div>
+
+        {hasLocalStorageData && (
+          <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2 text-amber-800">
+              <Database className="w-5 h-5" />
+              <span>偵測到瀏覽器 localStorage 中有商品資料，可一鍵遷移至 D1 資料庫。</span>
+            </div>
+            <button
+              type="button"
+              onClick={handleMigrate}
+              disabled={migrating}
+              className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2 disabled:opacity-70"
+            >
+              {migrating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Database className="w-4 h-4" />}
+              {migrating ? "遷移中..." : "遷移至 D1"}
+            </button>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Add Product Form */}

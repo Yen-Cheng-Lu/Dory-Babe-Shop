@@ -12,6 +12,10 @@
     "build": "vite build",
     "preview": "vite preview",
     "deploy": "npm run build && npx wrangler pages deploy dist --project-name=dory-babe-shop",
+    "db:create": "npx wrangler d1 create dory-babe-shop-db",
+    "db:migrate:local": "npx wrangler d1 migrations apply dory-babe-shop-db --local",
+    "db:migrate:remote": "npx wrangler d1 migrations apply dory-babe-shop-db --remote",
+    "pages:dev": "npx wrangler pages dev dist --compatibility-date=2025-03-04",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit"
   },
@@ -29,6 +33,7 @@
     "vite": "^6.2.0"
   },
   "devDependencies": {
+    "wrangler": "^4.0.0",
     "@types/express": "^4.17.21",
     "@types/node": "^22.14.0",
     "autoprefixer": "^10.4.21",

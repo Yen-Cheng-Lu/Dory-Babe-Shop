@@ -43,6 +43,18 @@ try {
   // Ignore if column already exists
 }
 
+try {
+  db.exec("ALTER TABLE products ADD COLUMN maxPrice REAL");
+} catch (e) {
+  // Ignore if column already exists
+}
+
+try {
+  db.exec("ALTER TABLE products ADD COLUMN category TEXT");
+} catch (e) {
+  // Ignore if column already exists
+}
+
 async function startServer() {
   const app = express();
   const PORT = 3000;
@@ -75,53 +87,24 @@ async function startServer() {
 
   app.post("/api/products", (req, res) => {
     try {
-      const { name, description, detailedDescription, price, imageUrl, galleryImages } = req.body;
+      const { name, description, detailedDescription, price, maxPrice, imageUrl, galleryImages, category } = req.body;
       
       if (!name || price === undefined || !imageUrl) {
         return res.status(400).json({ error: "Missing required fields" });
       }
 
       const stmt = db.prepare(`
-        INSERT INTO products (name, description, detailedDescription, price, imageUrl, galleryImages)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO products (name, description, detailedDescription, price, maxPrice, imageUrl, galleryImages, category)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `);
       
-      const result = stmt.run(name, description, detailedDescription, price, imageUrl, JSON.stringify(galleryImages || []));
+      const result = stmt.run(name, description, detailedDescription, price, maxPrice ?? null, imageUrl, JSON.stringify(galleryImages || []), category || null);
       
       const newProduct = db.prepare("SELECT * FROM products WHERE id = ?").get(result.lastInsertRowid);
       res.status(201).json({ ...newProduct, galleryImages: JSON.parse(newProduct.galleryImages || '[]') });
     } catch (error) {
       console.error("Error adding product:", error);
       res.status(500).json({ error: "Failed to add product" });
-    }
-  });
-
-  app.put("/api/products/:id", (req, res) => {
-    try {
-      const id = Number(req.params.id);
-      const { name, description, detailedDescription, price, imageUrl, galleryImages } = req.body;
-      
-      if (!name || price === undefined || !imageUrl) {
-        return res.status(400).json({ error: "Missing required fields" });
-      }
-
-      const stmt = db.prepare(`
-        UPDATE products 
-        SET name = ?, description = ?, detailedDescription = ?, price = ?, imageUrl = ?, galleryImages = ?
-        WHERE id = ?
-      `);
-      
-      const result = stmt.run(name, description, detailedDescription, price, imageUrl, JSON.stringify(galleryImages || []), id);
-      
-      if (result.changes === 0) {
-        return res.status(404).json({ error: "Product not found" });
-      }
-      
-      const updatedProduct = db.prepare("SELECT * FROM products WHERE id = ?").get(id);
-      res.json({ ...updatedProduct, galleryImages: JSON.parse(updatedProduct.galleryImages || '[]') });
-    } catch (error) {
-      console.error("Error updating product:", error);
-      res.status(500).json({ error: "Failed to update product" });
     }
   });
 
@@ -141,6 +124,73 @@ async function startServer() {
     } catch (error) {
       console.error("Error reordering products:", error);
       res.status(500).json({ error: "Failed to reorder products" });
+    }
+  });
+
+  app.post("/api/products/migrate", (req, res) => {
+    try {
+      const { products } = req.body;
+      if (!Array.isArray(products) || products.length === 0) {
+        return res.status(400).json({ error: "products must be a non-empty array" });
+      }
+
+      const stmt = db.prepare(`
+        INSERT INTO products (name, description, detailedDescription, price, maxPrice, imageUrl, galleryImages, category, orderIndex, createdAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+
+      const transaction = db.transaction((productsArray) => {
+        for (let i = 0; i < productsArray.length; i++) {
+          const p = productsArray[i];
+          stmt.run(
+            p.name,
+            p.description || null,
+            p.detailedDescription || null,
+            p.price,
+            p.maxPrice ?? null,
+            p.imageUrl,
+            JSON.stringify(p.galleryImages || []),
+            p.category || null,
+            p.orderIndex ?? i,
+            p.createdAt || new Date().toISOString()
+          );
+        }
+      });
+
+      transaction(products);
+      res.json({ success: true, migrated: products.length });
+    } catch (error) {
+      console.error("Error migrating products:", error);
+      res.status(500).json({ error: "Failed to migrate products" });
+    }
+  });
+
+  app.put("/api/products/:id", (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const { name, description, detailedDescription, price, maxPrice, imageUrl, galleryImages, category } = req.body;
+      
+      if (!name || price === undefined || !imageUrl) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      const stmt = db.prepare(`
+        UPDATE products 
+        SET name = ?, description = ?, detailedDescription = ?, price = ?, maxPrice = ?, imageUrl = ?, galleryImages = ?, category = ?
+        WHERE id = ?
+      `);
+      
+      const result = stmt.run(name, description, detailedDescription, price, maxPrice ?? null, imageUrl, JSON.stringify(galleryImages || []), category || null, id);
+      
+      if (result.changes === 0) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+      
+      const updatedProduct = db.prepare("SELECT * FROM products WHERE id = ?").get(id);
+      res.json({ ...updatedProduct, galleryImages: JSON.parse(updatedProduct.galleryImages || '[]') });
+    } catch (error) {
+      console.error("Error updating product:", error);
+      res.status(500).json({ error: "Failed to update product" });
     }
   });
 
