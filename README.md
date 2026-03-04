@@ -34,6 +34,17 @@
 3. 建置專案：`npm run build`
 4. 部署：`npm run deploy` 或 `npx wrangler pages deploy dist --project-name=Dory-Babe-Shop`
 
+### 建置失敗排錯
+
+若部署顯示「沒有可用的部署」，請：
+
+1. **查看建置日誌**：Deployments → 點擊失敗的部署 → **檢視詳細資料** → 查看 Build log 中的錯誤訊息
+2. **設定 Node 版本**：Settings → Builds & deployments → Build configuration → Environment variables → 新增 `NODE_VERSION` = `18`
+3. **確認建置設定**：
+   - Build command: `npm run build`
+   - Build output directory: `dist`
+   - Framework preset: `Vite`（可選，有助於自動偵測）
+
 ### 設定 GEMINI_API_KEY（若使用 AI 功能）
 
 1. 前往 **Workers & Pages** → **Dory-Babe-Shop** → **Settings** → **Environment variables**
