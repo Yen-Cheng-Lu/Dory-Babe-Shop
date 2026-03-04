@@ -259,14 +259,20 @@ export default function Admin() {
                       placeholder="例如：日本代購"
                     />
                     <datalist id="category-options">
-                      {Array.from(new Set(products.map(p => p.category).filter(Boolean))).map(cat => (
-                        <option key={cat} value={cat} />
-                      ))}
-                      <option value="日本代購" />
-                      <option value="韓國代購" />
-                      <option value="母嬰用品" />
-                      <option value="生活雜貨" />
-                      <option value="美妝保養" />
+                      {Array.from(
+                        new Set([
+                          ...products.map(p => p.category).filter(Boolean),
+                          "日本代購",
+                          "韓國代購",
+                          "母嬰用品",
+                          "生活雜貨",
+                          "美妝保養",
+                        ])
+                      )
+                        .sort()
+                        .map(cat => (
+                          <option key={cat} value={cat} />
+                        ))}
                     </datalist>
                   </div>
                 </div>
