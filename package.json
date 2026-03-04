@@ -11,7 +11,7 @@
     "start": "node server.ts",
     "build": "vite build",
     "preview": "vite preview",
-    "deploy": "npm run build && wrangler pages deploy dist --project-name=Dory-Babe-Shop",
+    "deploy": "npm run build && wrangler pages deploy dist --project-name=dory-babe-shop",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit"
   },
