@@ -39,7 +39,7 @@
 若部署顯示「沒有可用的部署」，請：
 
 1. **查看建置日誌**：Deployments → 點擊失敗的部署 → **檢視詳細資料** → 查看 Build log 中的錯誤訊息
-2. **設定 Node 版本**：Settings → Builds & deployments → Build configuration → Environment variables → 新增 `NODE_VERSION` = `18`
+2. **設定 Node 版本**：Settings → Builds & deployments → Build configuration → Environment variables → 新增 `NODE_VERSION` = `20`（套件需要 Node 20+）
 3. **確認建置設定**：
    - Build command: `npm run build`
    - Build output directory: `dist`
