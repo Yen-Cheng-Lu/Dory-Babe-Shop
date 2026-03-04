@@ -72,8 +72,13 @@
    npm run db:migrate:remote
    ```
 
-5. **部署**  
+5. **在 Cloudflare Dashboard 綁定 D1**（必做）  
+   前往專案 **Settings** → **Functions** → **Bindings** → **Add binding** → **D1 database**，變數名稱設為 `DB`，選擇 `dory-babe-shop-db`。
+
+6. **部署**  
    完成後執行 `npm run deploy` 部署至 Cloudflare Pages。
+
+> 若商品無法載入，請參考 [D1_SETUP.md](./D1_SETUP.md) 完整檢查清單。
 
 ### localStorage 遷移
 
