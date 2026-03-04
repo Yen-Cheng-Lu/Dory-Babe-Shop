@@ -29,6 +29,16 @@ function parseProduct(row: Product) {
 }
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
+  if (!context.env.DB) {
+    return Response.json(
+      {
+        error: "D1 未綁定",
+        message: "請至 Cloudflare Dashboard > Settings > Functions > Bindings 新增 D1 綁定，變數名稱必須為 DB",
+      },
+      { status: 503, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
   try {
     const { results } = await context.env.DB.prepare(
       "SELECT * FROM products ORDER BY orderIndex ASC, createdAt DESC"
@@ -48,6 +58,16 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 };
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
+  if (!context.env.DB) {
+    return Response.json(
+      {
+        error: "D1 未綁定",
+        message: "請至 Cloudflare Dashboard > Settings > Functions > Bindings 新增 D1 綁定，變數名稱必須為 DB",
+      },
+      { status: 503, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
   try {
     const body = await context.request.json();
     const {
@@ -103,8 +123,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     });
   } catch (err) {
     console.error("Error adding product:", err);
+    const message = err instanceof Error ? err.message : String(err);
     return Response.json(
-      { error: "Failed to add product" },
+      { error: "Failed to add product", details: message },
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }

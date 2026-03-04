@@ -29,6 +29,12 @@ function parseProduct(row: Product) {
 }
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
+  if (!context.env.DB) {
+    return Response.json(
+      { error: "D1 未綁定", message: "請至 Cloudflare Dashboard 新增 D1 綁定，變數名稱必須為 DB" },
+      { status: 503 }
+    );
+  }
   const id = Number(context.params.id);
   if (isNaN(id)) {
     return Response.json({ error: "Invalid product ID" }, { status: 400 });
@@ -57,6 +63,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 };
 
 export const onRequestPut: PagesFunction<Env> = async (context) => {
+  if (!context.env.DB) {
+    return Response.json(
+      { error: "D1 未綁定", message: "請至 Cloudflare Dashboard 新增 D1 綁定，變數名稱必須為 DB" },
+      { status: 503 }
+    );
+  }
   const id = Number(context.params.id);
   if (isNaN(id)) {
     return Response.json({ error: "Invalid product ID" }, { status: 400 });
@@ -129,6 +141,12 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
 };
 
 export const onRequestDelete: PagesFunction<Env> = async (context) => {
+  if (!context.env.DB) {
+    return Response.json(
+      { error: "D1 未綁定", message: "請至 Cloudflare Dashboard 新增 D1 綁定，變數名稱必須為 DB" },
+      { status: 503 }
+    );
+  }
   const id = Number(context.params.id);
   if (isNaN(id)) {
     return Response.json({ error: "Invalid product ID" }, { status: 400 });

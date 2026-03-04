@@ -16,7 +16,8 @@ async function request<T>(
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || "Request failed");
+    const msg = [err.error, err.message, err.details].filter(Boolean).join(" - ");
+    throw new Error(msg || "Request failed");
   }
 
   return res.json();

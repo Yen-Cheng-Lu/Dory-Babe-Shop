@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Product } from "../types";
 import { getProducts, addProduct, updateProduct, deleteProduct, reorderProducts, migrateFromLocalStorage } from "../services/api";
-import { Plus, Trash2, Pencil, Loader2, Package, ChevronUp, ChevronDown, Database } from "lucide-react";
+import { Plus, Trash2, Pencil, Loader2, Package, ChevronUp, ChevronDown, Database, Activity } from "lucide-react";
 import ImageUpload from "../components/ImageUpload";
 
 export default function Admin() {
@@ -12,6 +12,7 @@ export default function Admin() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [hasLocalStorageData, setHasLocalStorageData] = useState(false);
   const [migrating, setMigrating] = useState(false);
+  const [healthStatus, setHealthStatus] = useState<{ ok?: boolean; message?: string; checks?: Record<string, string> } | null>(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -73,7 +74,8 @@ export default function Admin() {
       setFormData({ name: "", description: "", detailedDescription: "", price: "", maxPrice: "", imageUrl: "", galleryImages: [], category: "" });
     } catch (err) {
       console.error(err);
-      alert(editingId ? "更新失敗" : "新增失敗");
+      const msg = err instanceof Error ? err.message : "未知錯誤";
+      alert(editingId ? `更新失敗：${msg}` : `新增失敗：${msg}`);
     } finally {
       setAdding(false);
     }
@@ -145,6 +147,17 @@ export default function Admin() {
     }
   };
 
+  const checkHealth = async () => {
+    setHealthStatus(null);
+    try {
+      const res = await fetch("/api/health");
+      const data = await res.json();
+      setHealthStatus({ ok: data.ok, message: data.message, checks: data.checks });
+    } catch (err) {
+      setHealthStatus({ ok: false, message: err instanceof Error ? err.message : "無法連線" });
+    }
+  };
+
   const handleMigrate = async () => {
     if (!hasLocalStorageData) return;
     setMigrating(true);
@@ -167,6 +180,28 @@ export default function Admin() {
         <div className="flex items-center gap-3 mb-8">
           <Package className="w-8 h-8 text-stone-800" />
           <h1 className="text-3xl font-bold text-stone-800 tracking-tight">商品管理後台</h1>
+        </div>
+
+        <div className="mb-6 p-4 bg-stone-50 border border-stone-200 rounded-xl flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-2 text-stone-600">
+            <Activity className="w-5 h-5" />
+            <span>若無法新增商品，請點擊檢查 API 狀態</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={checkHealth}
+              className="px-4 py-2 bg-stone-700 hover:bg-stone-800 text-white font-medium rounded-lg transition-colors flex items-center gap-2"
+            >
+              <Activity className="w-4 h-4" />
+              檢查 API 狀態
+            </button>
+            {healthStatus && (
+              <div className={`px-4 py-2 rounded-lg text-sm font-medium ${healthStatus.ok ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800"}`}>
+                {healthStatus.ok ? "✓ D1 已連線" : healthStatus.checks?.db || healthStatus.message || "檢查失敗"}
+              </div>
+            )}
+          </div>
         </div>
 
         {hasLocalStorageData && (

@@ -8,6 +8,12 @@ interface Env {
 }
 
 export const onRequestPut: PagesFunction<Env> = async (context) => {
+  if (!context.env.DB) {
+    return Response.json(
+      { error: "D1 未綁定", message: "請至 Cloudflare Dashboard 新增 D1 綁定，變數名稱必須為 DB" },
+      { status: 503 }
+    );
+  }
   try {
     const body = await context.request.json();
     const { updates } = body;
