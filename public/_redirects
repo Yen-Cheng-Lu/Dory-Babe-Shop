@@ -1,3 +1,4 @@
 # Cloudflare Pages - SPA 路由支援
-# 所有路徑都導向 index.html，由 React Router 處理
-/*    /index.html   200
+# /api/* 保留給 Pages Functions 處理，其餘導向 index.html
+/api/*  /api/:splat  200
+/*     /index.html   200
