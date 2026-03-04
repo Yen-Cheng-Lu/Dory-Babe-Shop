@@ -19,7 +19,7 @@ export interface GenerateContentRequest {
 }
 
 export async function generateContent(request: GenerateContentRequest, model = "gemini-2.0-flash") {
-  const res = await fetch(`${API_BASE}/models/${model}:generateContent`, {
+  const res = await fetch(`${API_BASE}?model=${encodeURIComponent(model)}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(request),

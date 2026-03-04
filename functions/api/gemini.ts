@@ -1,7 +1,7 @@
 /**
  * Gemini API 代理 - 將 API 呼叫移至後端，避免在前端暴露 API Key
  * GEMINI_API_KEY 請在 Cloudflare Dashboard 設定為 Secret
- * 路徑範例: /api/gemini 或 /api/gemini/models/gemini-2.0-flash:generateContent
+ * 路徑: POST /api/gemini?model=gemini-2.0-flash
  */
 
 interface Env {
@@ -20,9 +20,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   }
 
   try {
-    const pathParts = context.params.path as string[] | undefined;
-    const subPath = pathParts?.length ? pathParts.join("/") : "models/gemini-2.0-flash:generateContent";
-    const targetUrl = `${GEMINI_BASE}/${subPath}?key=${apiKey}`;
+    const url = new URL(context.request.url);
+    const model = url.searchParams.get("model") || "gemini-2.0-flash";
+    const targetUrl = `${GEMINI_BASE}/models/${model}:generateContent?key=${apiKey}`;
 
     const body = await context.request.text();
     const headers = new Headers(context.request.headers);
@@ -53,7 +53,6 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   }
 };
 
-// 支援 CORS preflight
 export const onRequestOptions: PagesFunction = async () => {
   return new Response(null, {
     status: 204,
