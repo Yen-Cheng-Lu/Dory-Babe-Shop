@@ -40,14 +40,48 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   }
 
   try {
-    const { results } = await context.env.DB.prepare(
-      "SELECT * FROM products ORDER BY orderIndex ASC, createdAt DESC"
-    ).all<Product>();
+    const url = new URL(context.request.url);
+    const page = Math.max(1, parseInt(url.searchParams.get("page") || "1", 10));
+    const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get("limit") || "15", 10)));
+    const category = url.searchParams.get("category") || "";
+    const offset = (page - 1) * limit;
+
+    const categoryFilter = category && category !== "全部" ? " WHERE category = ?" : "";
+    const categoryParam = category && category !== "全部" ? category : undefined;
+
+    const countStmt = context.env.DB.prepare(
+      `SELECT COUNT(*) as total FROM products${categoryFilter}`
+    );
+    const countResult = categoryParam
+      ? await countStmt.bind(categoryParam).first<{ total: number }>()
+      : await countStmt.first<{ total: number }>();
+    const total = countResult?.total ?? 0;
+
+    const productsStmt = context.env.DB.prepare(
+      `SELECT * FROM products${categoryFilter} ORDER BY orderIndex ASC, createdAt DESC LIMIT ? OFFSET ?`
+    );
+    const productsQuery = categoryParam
+      ? productsStmt.bind(categoryParam, limit, offset)
+      : productsStmt.bind(limit, offset);
+    const { results } = await productsQuery.all<Product>();
+
+    const categoriesResult = await context.env.DB.prepare(
+      "SELECT DISTINCT category FROM products WHERE category IS NOT NULL AND category != '' ORDER BY category"
+    ).all<{ category: string }>();
+    const categories = (categoriesResult.results || []).map((r) => r.category);
 
     const products = (results || []).map(parseProduct);
-    return Response.json(products, {
-      headers: { "Access-Control-Allow-Origin": "*" },
-    });
+    return Response.json(
+      {
+        products,
+        total,
+        page,
+        limit,
+        hasMore: offset + products.length < total,
+        categories,
+      },
+      { headers: { "Access-Control-Allow-Origin": "*" } }
+    );
   } catch (err) {
     console.error("Error fetching products:", err);
     return Response.json(

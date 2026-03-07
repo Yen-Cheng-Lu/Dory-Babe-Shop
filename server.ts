@@ -65,9 +65,38 @@ async function startServer() {
   // API Routes
   app.get("/api/products", (req, res) => {
     try {
-      const products = db.prepare("SELECT * FROM products ORDER BY orderIndex ASC, createdAt DESC").all();
-      const parsedProducts = products.map(p => ({ ...p, galleryImages: JSON.parse(p.galleryImages || '[]') }));
-      res.json(parsedProducts);
+      const page = Math.max(1, parseInt(req.query.page as string || "1", 10));
+      const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string || "15", 10)));
+      const category = (req.query.category as string) || "";
+      const offset = (page - 1) * limit;
+
+      const categoryFilter = category && category !== "全部" ? " WHERE category = ?" : "";
+      const categoryParam = category && category !== "全部" ? category : null;
+
+      const countSql = `SELECT COUNT(*) as total FROM products${categoryFilter}`;
+      const total = (categoryParam
+        ? db.prepare(countSql).get(categoryParam)
+        : db.prepare(countSql).get()) as { total: number };
+
+      const productsSql = `SELECT * FROM products${categoryFilter} ORDER BY orderIndex ASC, createdAt DESC LIMIT ? OFFSET ?`;
+      const allProducts = categoryParam
+        ? db.prepare(productsSql).all(categoryParam, limit, offset)
+        : db.prepare(productsSql).all(limit, offset);
+      const parsedProducts = (allProducts as Record<string, unknown>[]).map(p =>
+        ({ ...p, galleryImages: JSON.parse((p.galleryImages as string) || "[]") })
+      );
+
+      const categoriesRows = db.prepare("SELECT DISTINCT category FROM products WHERE category IS NOT NULL AND category != '' ORDER BY category").all() as { category: string }[];
+      const categories = categoriesRows.map((r) => r.category);
+
+      res.json({
+        products: parsedProducts,
+        total: total.total,
+        page,
+        limit,
+        hasMore: offset + parsedProducts.length < total.total,
+        categories,
+      });
     } catch (error) {
       console.error("Error fetching products:", error);
       res.status(500).json({ error: "Failed to fetch products" });

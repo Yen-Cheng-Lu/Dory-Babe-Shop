@@ -2,6 +2,15 @@ import { Product } from "../types";
 
 const API_BASE = "/api/products";
 
+export interface ProductsResponse {
+  products: Product[];
+  total: number;
+  page: number;
+  limit: number;
+  hasMore: boolean;
+  categories: string[];
+}
+
 async function request<T>(
   url: string,
   options?: RequestInit
@@ -23,8 +32,17 @@ async function request<T>(
   return res.json();
 }
 
-export const getProducts = async (): Promise<Product[]> => {
-  return request<Product[]>(API_BASE);
+export const getProducts = async (options?: {
+  page?: number;
+  limit?: number;
+  category?: string;
+}): Promise<ProductsResponse> => {
+  const params = new URLSearchParams();
+  if (options?.page != null) params.set("page", String(options.page));
+  if (options?.limit != null) params.set("limit", String(options.limit));
+  if (options?.category != null) params.set("category", options.category);
+  const url = params.toString() ? `${API_BASE}?${params}` : API_BASE;
+  return request<ProductsResponse>(url);
 };
 
 export const getProduct = async (id: number): Promise<Product> => {

@@ -37,8 +37,8 @@ export default function Admin() {
 
   const fetchProducts = async () => {
     try {
-      const data = await getProducts();
-      setProducts(data);
+      const data = await getProducts({ limit: 9999 });
+      setProducts(data.products);
     } catch (err) {
       console.error(err);
     } finally {
