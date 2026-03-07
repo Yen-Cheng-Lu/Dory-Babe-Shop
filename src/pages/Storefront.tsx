@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Product } from "../types";
 import { getProducts } from "../services/api";
-import { ShoppingBag, Loader2, ChevronDown } from "lucide-react";
+import { ShoppingBag, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { motion } from "motion/react";
 
 const PAGE_SIZE = 15;
@@ -12,43 +12,44 @@ export default function Storefront() {
   const [categories, setCategories] = useState<string[]>(["全部"]);
   const [selectedCategory, setSelectedCategory] = useState<string>("全部");
   const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  const fetchProducts = useCallback(async (pageNum: number, category: string, append: boolean) => {
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  const fetchProducts = useCallback(async (pageNum: number, category: string) => {
     try {
-      if (pageNum === 1) setLoading(true);
-      else setLoadingMore(true);
+      setLoading(true);
       const data = await getProducts({
         page: pageNum,
         limit: PAGE_SIZE,
         category: category === "全部" ? undefined : category,
       });
-      setProducts((prev) => (append ? [...prev, ...data.products] : data.products));
+      setProducts(data.products);
       setCategories(["全部", ...data.categories]);
-      setHasMore(data.hasMore);
+      setTotal(data.total);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "無法載入商品，請稍後再試。";
       console.error("[Storefront] 載入商品失敗:", err);
       setError(msg);
     } finally {
       setLoading(false);
-      setLoadingMore(false);
     }
   }, []);
 
   useEffect(() => {
-    setPage(1);
-    fetchProducts(1, selectedCategory, false);
-  }, [selectedCategory, fetchProducts]);
+    fetchProducts(page, selectedCategory);
+  }, [page, selectedCategory, fetchProducts]);
 
-  const loadMore = () => {
-    const nextPage = page + 1;
-    setPage(nextPage);
-    fetchProducts(nextPage, selectedCategory, true);
+  const handleCategoryChange = (category: string) => {
+    setSelectedCategory(category);
+    setPage(1);
+  };
+
+  const goToPage = (p: number) => {
+    if (p >= 1 && p <= totalPages) setPage(p);
   };
 
   return (
@@ -80,7 +81,7 @@ export default function Storefront() {
               {categories.map(category => (
                 <button
                   key={category}
-                  onClick={() => setSelectedCategory(category)}
+                  onClick={() => handleCategoryChange(category)}
                   className={`px-4 py-2 rounded-full whitespace-nowrap text-sm font-medium transition-colors ${
                     selectedCategory === category
                       ? "bg-stone-900 text-white"
@@ -135,20 +136,59 @@ export default function Storefront() {
                     </motion.div>
                   ))}
                 </div>
-                {hasMore && (
-                  <div className="flex justify-center mt-12">
+                {totalPages > 1 && (
+                  <div className="flex justify-center items-center gap-2 mt-12 flex-wrap">
                     <button
                       type="button"
-                      onClick={loadMore}
-                      disabled={loadingMore}
-                      className="flex items-center gap-2 px-6 py-3 bg-stone-900 hover:bg-stone-800 disabled:opacity-70 text-white font-medium rounded-xl transition-colors"
+                      onClick={() => goToPage(page - 1)}
+                      disabled={page <= 1}
+                      title="上一頁"
+                      aria-label="上一頁"
+                      className="p-2 rounded-lg bg-stone-100 hover:bg-stone-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                     >
-                      {loadingMore ? (
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                      ) : (
-                        <ChevronDown className="w-5 h-5" />
-                      )}
-                      {loadingMore ? "載入中..." : "載入更多"}
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+                    <div className="flex gap-1 items-center">
+                      {(() => {
+                        const pages: (number | string)[] = [];
+                        if (totalPages <= 7) {
+                          for (let i = 1; i <= totalPages; i++) pages.push(i);
+                        } else {
+                          pages.push(1);
+                          if (page > 3) pages.push("…");
+                          for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) {
+                            pages.push(i);
+                          }
+                          if (page < totalPages - 2) pages.push("…");
+                          if (totalPages > 1) pages.push(totalPages);
+                        }
+                        return pages.map((p, i) =>
+                          p === "…" ? (
+                            <span key={`ellipsis-${i}`} className="px-2 text-stone-400">…</span>
+                          ) : (
+                            <button
+                              key={p}
+                              type="button"
+                              onClick={() => goToPage(p as number)}
+                              className={`min-w-[2.25rem] h-9 rounded-lg font-medium transition-colors ${
+                                p === page ? "bg-stone-900 text-white" : "bg-stone-100 hover:bg-stone-200 text-stone-700"
+                              }`}
+                            >
+                              {p}
+                            </button>
+                          )
+                        );
+                      })()}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => goToPage(page + 1)}
+                      disabled={page >= totalPages}
+                      title="下一頁"
+                      aria-label="下一頁"
+                      className="p-2 rounded-lg bg-stone-100 hover:bg-stone-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <ChevronRight className="w-5 h-5" />
                     </button>
                   </div>
                 )}

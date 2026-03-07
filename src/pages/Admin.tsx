@@ -1,11 +1,16 @@
 import { useEffect, useState } from "react";
 import { Product } from "../types";
 import { getProducts, addProduct, updateProduct, deleteProduct, reorderProducts, migrateFromLocalStorage } from "../services/api";
-import { Plus, Trash2, Pencil, Loader2, Package, ChevronUp, ChevronDown, Database, Activity } from "lucide-react";
+import { Plus, Trash2, Pencil, Loader2, Package, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Database, Activity } from "lucide-react";
 import ImageUpload from "../components/ImageUpload";
+
+const PAGE_SIZE = 15;
 
 export default function Admin() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -25,20 +30,25 @@ export default function Admin() {
     category: "",
   });
 
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
   useEffect(() => {
-    fetchProducts();
+    fetchProducts(page);
     try {
       const data = localStorage.getItem("dory_babe_products");
       setHasLocalStorageData(!!data && JSON.parse(data || "[]").length > 0);
     } catch {
       setHasLocalStorageData(false);
     }
-  }, []);
+  }, [page]);
 
-  const fetchProducts = async () => {
+  const fetchProducts = async (pageNum: number) => {
     try {
-      const data = await getProducts({ limit: 9999 });
+      setLoading(true);
+      const data = await getProducts({ page: pageNum, limit: PAGE_SIZE });
       setProducts(data.products);
+      setCategories(data.categories);
+      setTotal(data.total);
     } catch (err) {
       console.error(err);
     } finally {
@@ -68,8 +78,8 @@ export default function Admin() {
         setProducts(products.map(p => p.id === editingId ? updatedProduct : p));
         setEditingId(null);
       } else {
-        const newProduct = await addProduct(productData);
-        setProducts([newProduct, ...products]);
+        await addProduct(productData);
+        await fetchProducts(page);
       }
       setFormData({ name: "", description: "", detailedDescription: "", price: "", maxPrice: "", imageUrl: "", galleryImages: [], category: "" });
     } catch (err) {
@@ -104,11 +114,11 @@ export default function Admin() {
   const handleDelete = async (id: number) => {
     try {
       await deleteProduct(id);
-      setProducts(products.filter(p => p.id !== id));
       setConfirmDeleteId(null);
       if (editingId === id) {
         handleCancelEdit();
       }
+      await fetchProducts(page);
     } catch (err) {
       console.error(err);
       alert("刪除失敗");
@@ -164,7 +174,7 @@ export default function Admin() {
     try {
       const { migrated } = await migrateFromLocalStorage();
       setHasLocalStorageData(false);
-      await fetchProducts();
+      await fetchProducts(page);
       alert(`成功將 ${migrated} 筆商品從 localStorage 遷移至 D1 資料庫！`);
     } catch (err) {
       console.error(err);
@@ -259,16 +269,8 @@ export default function Admin() {
                       placeholder="例如：日本代購"
                     />
                     <datalist id="category-options">
-                      {Array.from(
-                        new Set([
-                          ...products.map(p => p.category).filter(Boolean),
-                          "日本代購",
-                          "韓國代購",
-                          "母嬰用品",
-                          "生活雜貨",
-                          "美妝保養",
-                        ])
-                      )
+                      {Array.from(new Set([...categories, "日本代購", "韓國代購", "母嬰用品", "生活雜貨", "美妝保養"]))
+                        .filter(Boolean)
                         .sort()
                         .map(cat => (
                           <option key={cat} value={cat} />
@@ -371,10 +373,10 @@ export default function Admin() {
           {/* Product List */}
           <div className="lg:col-span-2">
             <div className="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden">
-              <div className="p-6 border-b border-stone-100 flex justify-between items-center">
+              <div className="p-6 border-b border-stone-100 flex justify-between items-center flex-wrap gap-2">
                 <h2 className="text-xl font-semibold text-stone-800">已上架商品</h2>
                 <span className="bg-stone-100 text-stone-600 px-3 py-1 rounded-full text-sm font-medium">
-                  共 {products.length} 件
+                  共 {total} 件
                 </span>
               </div>
               
@@ -388,6 +390,7 @@ export default function Admin() {
                   <p>目前還沒有商品，從左側新增一個吧！</p>
                 </div>
               ) : (
+                <>
                 <ul className="divide-y divide-stone-100">
                   {products.map((product, index) => (
                     <li key={product.id} className="p-6 hover:bg-stone-50 transition-colors flex items-center gap-4 sm:gap-6">
@@ -482,6 +485,34 @@ export default function Admin() {
                     </li>
                   ))}
                 </ul>
+                {totalPages > 1 && (
+                  <div className="flex justify-center items-center gap-2 p-6 border-t border-stone-100 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page <= 1}
+                      title="上一頁"
+                      aria-label="上一頁"
+                      className="p-2 rounded-lg bg-stone-100 hover:bg-stone-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+                    <span className="text-stone-600 text-sm font-medium">
+                      第 {page} / {totalPages} 頁
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={page >= totalPages}
+                      title="下一頁"
+                      aria-label="下一頁"
+                      className="p-2 rounded-lg bg-stone-100 hover:bg-stone-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
+                  </div>
+                )}
+                </>
               )}
             </div>
           </div>
