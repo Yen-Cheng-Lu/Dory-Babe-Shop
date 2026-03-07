@@ -96,7 +96,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
 
     const result = await context.env.DB.prepare(
       `UPDATE products 
-       SET name = ?, description = ?, detailedDescription = ?, price = ?, maxPrice = ?, imageUrl = ?, galleryImages = ?, category = ?
+       SET name = ?, description = ?, detailedDescription = ?, price = ?, maxPrice = ?, imageUrl = ?, galleryImages = ?, category = ?, updatedAt = datetime('now')
        WHERE id = ?`
     )
       .bind(

@@ -1,6 +1,7 @@
-import { Product } from "../types";
+import { Product, Announcement } from "../types";
 
 const API_BASE = "/api/products";
+const ANNOUNCEMENTS_BASE = "/api/announcements";
 
 export interface ProductsResponse {
   products: Product[];
@@ -81,6 +82,31 @@ export const reorderProducts = async (
 
 export const deleteProduct = async (id: number): Promise<void> => {
   await request(`${API_BASE}/${id}`, { method: "DELETE" });
+};
+
+/** 佈告欄 API */
+export const getAnnouncements = async (activeOnly = false): Promise<Announcement[]> => {
+  const url = activeOnly ? `${ANNOUNCEMENTS_BASE}?active=true` : ANNOUNCEMENTS_BASE;
+  const res = await request<{ announcements: Announcement[] }>(url);
+  return res.announcements || [];
+};
+
+export const addAnnouncement = async (data: { content: string; isActive?: number }): Promise<Announcement> => {
+  return request<Announcement>(ANNOUNCEMENTS_BASE, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+};
+
+export const updateAnnouncement = async (id: number, data: { content?: string; isActive?: number }): Promise<Announcement> => {
+  return request<Announcement>(`${ANNOUNCEMENTS_BASE}/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+};
+
+export const deleteAnnouncement = async (id: number): Promise<void> => {
+  await request(`${ANNOUNCEMENTS_BASE}/${id}`, { method: "DELETE" });
 };
 
 /** 將 localStorage 的商品資料遷移至 D1 資料庫 */

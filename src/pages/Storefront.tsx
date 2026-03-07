@@ -1,14 +1,25 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Product } from "../types";
-import { getProducts } from "../services/api";
-import { ShoppingBag, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { getProducts, getAnnouncements } from "../services/api";
+import { ShoppingBag, Loader2, ChevronLeft, ChevronRight, Megaphone } from "lucide-react";
 import { motion } from "motion/react";
+
+function formatDateTime(iso: string | undefined): string {
+  if (!iso) return "—";
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString("zh-TW", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+  } catch {
+    return iso;
+  }
+}
 
 const PAGE_SIZE = 15;
 
 export default function Storefront() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [announcements, setAnnouncements] = useState<{ id: number; content: string }[]>([]);
   const [categories, setCategories] = useState<string[]>(["全部"]);
   const [selectedCategory, setSelectedCategory] = useState<string>("全部");
   const [page, setPage] = useState(1);
@@ -43,6 +54,10 @@ export default function Storefront() {
     fetchProducts(page, selectedCategory);
   }, [page, selectedCategory, fetchProducts]);
 
+  useEffect(() => {
+    getAnnouncements(true).then(setAnnouncements).catch(() => setAnnouncements([]));
+  }, []);
+
   const handleCategoryChange = (category: string) => {
     setSelectedCategory(category);
     setPage(1);
@@ -58,12 +73,24 @@ export default function Storefront() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <ShoppingBag className="w-6 h-6 text-emerald-600" />
-            <h1 className="text-xl font-semibold text-stone-900">Dory Babe 選物代購</h1>
+            <h1 className="text-xl font-semibold text-stone-900">Dory Babee 選物代購</h1>
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {announcements.length > 0 && (
+          <div className="mb-8 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
+            <Megaphone className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1 space-y-2">
+              {announcements.map((a) => (
+                <p key={a.id} className="text-amber-900 text-sm leading-relaxed">
+                  {a.content}
+                </p>
+              ))}
+            </div>
+          </div>
+        )}
         {loading ? (
           <div className="flex justify-center items-center h-64">
             <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
@@ -131,6 +158,12 @@ export default function Storefront() {
                             NT$ {product.price.toLocaleString()}
                             {(product.maxPrice !== undefined && product.maxPrice > product.price) && ` - ${product.maxPrice.toLocaleString()}`}
                           </span>
+                        </div>
+                        <div className="mt-2 pt-2 border-t border-stone-100 flex gap-3 text-xs text-stone-400">
+                          <span>建立：{formatDateTime(product.createdAt)}</span>
+                          {(product.updatedAt && product.updatedAt !== product.createdAt) && (
+                            <span>修改：{formatDateTime(product.updatedAt)}</span>
+                          )}
                         </div>
                       </div>
                     </motion.div>

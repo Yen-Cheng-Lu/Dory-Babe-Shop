@@ -55,6 +55,25 @@ try {
   // Ignore if column already exists
 }
 
+try {
+  db.exec("ALTER TABLE products ADD COLUMN updatedAt TEXT");
+  db.exec("UPDATE products SET updatedAt = createdAt WHERE updatedAt IS NULL");
+} catch (e) {
+  // Ignore if column already exists
+}
+
+// Create announcements table
+db.exec(`
+  CREATE TABLE IF NOT EXISTS announcements (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    content TEXT NOT NULL,
+    isActive INTEGER DEFAULT 1,
+    orderIndex INTEGER DEFAULT 0,
+    createdAt TEXT DEFAULT (datetime('now')),
+    updatedAt TEXT DEFAULT (datetime('now'))
+  )
+`);
+
 async function startServer() {
   const app = express();
   const PORT = 3000;
@@ -123,8 +142,8 @@ async function startServer() {
       }
 
       const stmt = db.prepare(`
-        INSERT INTO products (name, description, detailedDescription, price, maxPrice, imageUrl, galleryImages, category)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO products (name, description, detailedDescription, price, maxPrice, imageUrl, galleryImages, category, updatedAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
       `);
       
       const result = stmt.run(name, description, detailedDescription, price, maxPrice ?? null, imageUrl, JSON.stringify(galleryImages || []), category || null);
@@ -205,7 +224,7 @@ async function startServer() {
 
       const stmt = db.prepare(`
         UPDATE products 
-        SET name = ?, description = ?, detailedDescription = ?, price = ?, maxPrice = ?, imageUrl = ?, galleryImages = ?, category = ?
+        SET name = ?, description = ?, detailedDescription = ?, price = ?, maxPrice = ?, imageUrl = ?, galleryImages = ?, category = ?, updatedAt = datetime('now')
         WHERE id = ?
       `);
       
@@ -237,6 +256,79 @@ async function startServer() {
     } catch (error) {
       console.error("Error deleting product:", error);
       res.status(500).json({ error: "Failed to delete product" });
+    }
+  });
+
+  // Announcements API
+  app.get("/api/announcements", (req, res) => {
+    try {
+      const activeOnly = req.query.active === "true";
+      const whereClause = activeOnly ? " WHERE isActive = 1" : "";
+      const rows = db.prepare(`SELECT * FROM announcements${whereClause} ORDER BY orderIndex ASC, createdAt DESC`).all();
+      res.json({ announcements: rows });
+    } catch (error) {
+      console.error("Error fetching announcements:", error);
+      res.status(500).json({ error: "Failed to fetch announcements" });
+    }
+  });
+
+  app.post("/api/announcements", (req, res) => {
+    try {
+      const { content, isActive = 1 } = req.body;
+      if (!content || typeof content !== "string") {
+        return res.status(400).json({ error: "content 為必填" });
+      }
+      const result = db.prepare("INSERT INTO announcements (content, isActive) VALUES (?, ?)").run(content.trim(), isActive ? 1 : 0);
+      const newRow = db.prepare("SELECT * FROM announcements WHERE id = ?").get(result.lastInsertRowid) as Record<string, unknown>;
+      res.status(201).json(newRow);
+    } catch (error) {
+      console.error("Error adding announcement:", error);
+      res.status(500).json({ error: "Failed to add announcement" });
+    }
+  });
+
+  app.put("/api/announcements/:id", (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const { content, isActive } = req.body;
+      const updates: string[] = [];
+      const values: unknown[] = [];
+      if (content !== undefined) {
+        updates.push("content = ?");
+        values.push(typeof content === "string" ? content.trim() : content);
+      }
+      if (isActive !== undefined) {
+        updates.push("isActive = ?");
+        values.push(isActive ? 1 : 0);
+      }
+      if (updates.length === 0) {
+        return res.status(400).json({ error: "No fields to update" });
+      }
+      updates.push("updatedAt = datetime('now')");
+      values.push(id);
+      const result = db.prepare(`UPDATE announcements SET ${updates.join(", ")} WHERE id = ?`).run(...values);
+      if (result.changes === 0) {
+        return res.status(404).json({ error: "Announcement not found" });
+      }
+      const updated = db.prepare("SELECT * FROM announcements WHERE id = ?").get(id) as Record<string, unknown>;
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating announcement:", error);
+      res.status(500).json({ error: "Failed to update announcement" });
+    }
+  });
+
+  app.delete("/api/announcements/:id", (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const result = db.prepare("DELETE FROM announcements WHERE id = ?").run(id);
+      if (result.changes === 0) {
+        return res.status(404).json({ error: "Announcement not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting announcement:", error);
+      res.status(500).json({ error: "Failed to delete announcement" });
     }
   });
 

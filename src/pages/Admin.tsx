@@ -1,8 +1,18 @@
 import { useEffect, useState } from "react";
-import { Product } from "../types";
-import { getProducts, addProduct, updateProduct, deleteProduct, reorderProducts, migrateFromLocalStorage } from "../services/api";
-import { Plus, Trash2, Pencil, Loader2, Package, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Database, Activity } from "lucide-react";
+import { Product, Announcement } from "../types";
+import { getProducts, addProduct, updateProduct, deleteProduct, reorderProducts, migrateFromLocalStorage, getAnnouncements, addAnnouncement, updateAnnouncement, deleteAnnouncement } from "../services/api";
+import { Plus, Trash2, Pencil, Loader2, Package, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Database, Activity, Megaphone } from "lucide-react";
 import ImageUpload from "../components/ImageUpload";
+
+function formatDateTime(iso: string | undefined): string {
+  if (!iso) return "—";
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString("zh-TW", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+  } catch {
+    return iso;
+  }
+}
 
 const PAGE_SIZE = 15;
 
@@ -18,6 +28,10 @@ export default function Admin() {
   const [hasLocalStorageData, setHasLocalStorageData] = useState(false);
   const [migrating, setMigrating] = useState(false);
   const [healthStatus, setHealthStatus] = useState<{ ok?: boolean; message?: string; checks?: Record<string, string> } | null>(null);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [announcementContent, setAnnouncementContent] = useState("");
+  const [editingAnnouncementId, setEditingAnnouncementId] = useState<number | null>(null);
+  const [addingAnnouncement, setAddingAnnouncement] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -41,6 +55,10 @@ export default function Admin() {
       setHasLocalStorageData(false);
     }
   }, [page]);
+
+  useEffect(() => {
+    getAnnouncements().then(setAnnouncements).catch(() => setAnnouncements([]));
+  }, []);
 
   const fetchProducts = async (pageNum: number) => {
     try {
@@ -168,6 +186,45 @@ export default function Admin() {
     }
   };
 
+  const handleAddAnnouncement = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!announcementContent.trim()) return;
+    setAddingAnnouncement(true);
+    try {
+      const newAnn = await addAnnouncement({ content: announcementContent.trim() });
+      setAnnouncements((prev) => [newAnn, ...prev]);
+      setAnnouncementContent("");
+    } catch (err) {
+      console.error(err);
+      alert("新增佈告欄失敗");
+    } finally {
+      setAddingAnnouncement(false);
+    }
+  };
+
+  const handleUpdateAnnouncement = async (id: number, content: string, isActive: number) => {
+    try {
+      const updated = await updateAnnouncement(id, { content, isActive });
+      setAnnouncements((prev) => prev.map((a) => (a.id === id ? updated : a)));
+      setEditingAnnouncementId(null);
+    } catch (err) {
+      console.error(err);
+      alert("更新佈告欄失敗");
+    }
+  };
+
+  const handleDeleteAnnouncement = async (id: number) => {
+    if (!confirm("確定要刪除此佈告欄嗎？")) return;
+    try {
+      await deleteAnnouncement(id);
+      setAnnouncements((prev) => prev.filter((a) => a.id !== id));
+      setEditingAnnouncementId(null);
+    } catch (err) {
+      console.error(err);
+      alert("刪除佈告欄失敗");
+    }
+  };
+
   const handleMigrate = async () => {
     if (!hasLocalStorageData) return;
     setMigrating(true);
@@ -210,6 +267,106 @@ export default function Admin() {
               <div className={`px-4 py-2 rounded-lg text-sm font-medium ${healthStatus.ok ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800"}`}>
                 {healthStatus.ok ? "✓ D1 已連線" : healthStatus.checks?.db || healthStatus.message || "檢查失敗"}
               </div>
+            )}
+          </div>
+        </div>
+
+        <div className="mb-6 bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden">
+          <div className="p-6 border-b border-stone-100 flex items-center gap-2">
+            <Megaphone className="w-6 h-6 text-amber-600" />
+            <h2 className="text-xl font-semibold text-stone-800">佈告欄管理</h2>
+          </div>
+          <div className="p-6">
+            <form onSubmit={handleAddAnnouncement} className="flex gap-3 mb-6">
+              <input
+                type="text"
+                value={announcementContent}
+                onChange={(e) => setAnnouncementContent(e.target.value)}
+                placeholder="輸入佈告欄內容（將顯示在商品首頁）"
+                className="flex-1 px-4 py-2 rounded-xl border border-stone-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+              />
+              <button
+                type="submit"
+                disabled={addingAnnouncement || !announcementContent.trim()}
+                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-medium rounded-xl transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {addingAnnouncement ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                新增
+              </button>
+            </form>
+            {announcements.length === 0 ? (
+              <p className="text-stone-500 text-sm">尚無佈告欄，新增後會顯示在商品首頁</p>
+            ) : (
+              <ul className="space-y-3">
+                {announcements.map((a) => (
+                  <li key={a.id} className="p-4 bg-stone-50 rounded-xl border border-stone-200 flex items-center justify-between gap-4">
+                    {editingAnnouncementId === a.id ? (
+                      <div className="flex-1 flex gap-2 items-center">
+                        <input
+                          type="text"
+                          defaultValue={a.content}
+                          id={`ann-content-${a.id}`}
+                          className="flex-1 px-3 py-2 rounded-lg border border-stone-300"
+                        />
+                        <select
+                          id={`ann-active-${a.id}`}
+                          defaultValue={String(a.isActive)}
+                          className="px-3 py-2 rounded-lg border border-stone-300"
+                        >
+                          <option value="1">顯示</option>
+                          <option value="0">隱藏</option>
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const content = (document.getElementById(`ann-content-${a.id}`) as HTMLInputElement)?.value;
+                            const isActive = Number((document.getElementById(`ann-active-${a.id}`) as HTMLSelectElement)?.value);
+                            handleUpdateAnnouncement(a.id, content || a.content, isActive);
+                          }}
+                          className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-sm"
+                        >
+                          儲存
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingAnnouncementId(null)}
+                          className="px-3 py-1.5 bg-stone-200 text-stone-700 rounded-lg text-sm"
+                        >
+                          取消
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-stone-800">{a.content}</p>
+                          <p className="text-xs text-stone-400 mt-1">
+                            建立：{formatDateTime(a.createdAt)} · 修改：{formatDateTime(a.updatedAt)}
+                            {a.isActive ? " · 顯示中" : " · 已隱藏"}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setEditingAnnouncementId(a.id)}
+                            className="p-2 text-stone-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg"
+                            title="編輯"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteAnnouncement(a.id)}
+                            className="p-2 text-stone-400 hover:text-red-500 hover:bg-red-50 rounded-lg"
+                            title="刪除"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
         </div>
@@ -439,6 +596,10 @@ export default function Admin() {
                         <div className="text-emerald-600 font-semibold">
                           NT$ {product.price.toLocaleString()}
                           {(product.maxPrice !== undefined && product.maxPrice > product.price) && ` - ${product.maxPrice.toLocaleString()}`}
+                        </div>
+                        <div className="text-xs text-stone-400 mt-1">
+                          建立：{formatDateTime(product.createdAt)}
+                          {(product.updatedAt && product.updatedAt !== product.createdAt) && ` · 修改：${formatDateTime(product.updatedAt)}`}
                         </div>
                       </div>
 

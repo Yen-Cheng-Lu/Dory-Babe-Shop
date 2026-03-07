@@ -123,8 +123,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
 
     const result = await context.env.DB.prepare(
-      `INSERT INTO products (name, description, detailedDescription, price, maxPrice, imageUrl, galleryImages, category)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO products (name, description, detailedDescription, price, maxPrice, imageUrl, galleryImages, category, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
     )
       .bind(
         name,

@@ -10,4 +10,14 @@ export interface Product {
   category?: string;
   orderIndex?: number;
   createdAt: string;
+  updatedAt?: string;
+}
+
+export interface Announcement {
+  id: number;
+  content: string;
+  isActive: number;
+  orderIndex: number;
+  createdAt: string;
+  updatedAt: string;
 }

@@ -1,4 +1,4 @@
--- Dory Babe Shop 商品表
+-- Dory Babee Shop 商品表
 CREATE TABLE IF NOT EXISTS products (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
