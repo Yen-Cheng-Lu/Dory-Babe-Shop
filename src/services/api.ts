@@ -1,7 +1,13 @@
-import { Product, Announcement } from "../types";
+import { Product, Announcement, Member, CartItem, Order } from "../types";
 
 const API_BASE = "/api/products";
 const ANNOUNCEMENTS_BASE = "/api/announcements";
+const AUTH_BASE = "/api/auth";
+const CART_BASE = "/api/cart";
+const ORDERS_BASE = "/api/orders";
+const ADMIN_BASE = "/api/admin";
+
+const TOKEN_KEY = "dory_babe_token";
 
 export interface ProductsResponse {
   products: Product[];
@@ -12,16 +18,24 @@ export interface ProductsResponse {
   categories: string[];
 }
 
+function getAuthHeaders(): Record<string, string> {
+  const token = localStorage.getItem(TOKEN_KEY);
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 async function request<T>(
   url: string,
-  options?: RequestInit
+  options?: RequestInit & { skipAuth?: boolean }
 ): Promise<T> {
+  const { skipAuth, ...fetchOptions } = options ?? {};
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(skipAuth ? {} : getAuthHeaders()),
+    ...(fetchOptions.headers as Record<string, string>),
+  };
   const res = await fetch(url, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...options?.headers,
-    },
+    ...fetchOptions,
+    headers,
   });
 
   if (!res.ok) {
@@ -32,6 +46,10 @@ async function request<T>(
 
   return res.json();
 }
+
+export const getToken = () => localStorage.getItem(TOKEN_KEY);
+export const setToken = (token: string) => localStorage.setItem(TOKEN_KEY, token);
+export const clearToken = () => localStorage.removeItem(TOKEN_KEY);
 
 export const getProducts = async (options?: {
   page?: number;
@@ -135,4 +153,93 @@ export const migrateFromLocalStorage = async (): Promise<{ migrated: number }> =
   }
 
   return { migrated: res.migrated };
+};
+
+/** 認證 API */
+export const getLineAuthorizeUrl = async (): Promise<{ url: string }> => {
+  return request<{ url: string }>(`${AUTH_BASE}/line/authorize`, { skipAuth: true });
+};
+
+export const getMe = async (): Promise<Member | null> => {
+  try {
+    return await request<Member>(`${AUTH_BASE}/me`);
+  } catch {
+    return null;
+  }
+};
+
+export const demoLogin = async (): Promise<{ member: Member; token: string }> => {
+  const res = await request<{ member: Member; token: string }>(`${AUTH_BASE}/demo`, {
+    method: "POST",
+    skipAuth: true,
+  });
+  setToken(res.token);
+  return res;
+};
+
+export const logout = () => {
+  clearToken();
+};
+
+/** 購物車 API */
+export const getCart = async (): Promise<CartItem[]> => {
+  const res = await request<{ items: CartItem[] }>(CART_BASE);
+  return res.items ?? [];
+};
+
+export const addToCart = async (productId: number, quantity: number): Promise<CartItem> => {
+  const res = await request<CartItem>(CART_BASE, {
+    method: "POST",
+    body: JSON.stringify({ productId, quantity }),
+  });
+  return res;
+};
+
+export const updateCartItem = async (productId: number, quantity: number): Promise<void> => {
+  await request(`${CART_BASE}/${productId}`, {
+    method: "PUT",
+    body: JSON.stringify({ quantity }),
+  });
+};
+
+export const removeFromCart = async (productId: number): Promise<void> => {
+  await request(`${CART_BASE}/${productId}`, { method: "DELETE" });
+};
+
+/** 訂單 API */
+export const getMyOrders = async (): Promise<Order[]> => {
+  const res = await request<{ orders: Order[] }>(ORDERS_BASE);
+  return res.orders ?? [];
+};
+
+export const getOrder = async (id: number): Promise<Order> => {
+  return request<Order>(`${ORDERS_BASE}/${id}`);
+};
+
+export const createOrder = async (note?: string): Promise<Order> => {
+  return request<Order>(ORDERS_BASE, {
+    method: "POST",
+    body: JSON.stringify({ note: note || "" }),
+  });
+};
+
+/** 後台 API */
+export const getAdminMembers = async (): Promise<Member[]> => {
+  const res = await request<{ members: Member[] }>(`${ADMIN_BASE}/members`);
+  return res.members ?? [];
+};
+
+export const getAdminOrders = async (): Promise<Order[]> => {
+  const res = await request<{ orders: Order[] }>(`${ADMIN_BASE}/orders`);
+  return res.orders ?? [];
+};
+
+export const updateOrderStatus = async (
+  id: number,
+  data: { paymentStatus?: "unpaid" | "paid"; shippingStatus?: "unshipped" | "shipped" }
+): Promise<Order> => {
+  return request<Order>(`${ADMIN_BASE}/orders/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
 };

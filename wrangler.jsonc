@@ -2,6 +2,8 @@
 	"$schema": "./node_modules/wrangler/config-schema.json",
 	"name": "dory-babe-shop",
 	"pages_build_output_dir": "./dist",
+	// 部署後請至 Cloudflare Dashboard > Pages > 專案 > Settings > Environment variables 設定：
+	// LINE_CHANNEL_ID、LINE_CHANNEL_SECRET（用於 LINE 登入）
 	"compatibility_date": "2025-03-04",
 	"compatibility_flags": [
 		"nodejs_compat"

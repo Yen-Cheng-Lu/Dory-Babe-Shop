@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { Product, Announcement } from "../types";
-import { getProducts, addProduct, updateProduct, deleteProduct, reorderProducts, migrateFromLocalStorage, getAnnouncements, addAnnouncement, updateAnnouncement, deleteAnnouncement } from "../services/api";
-import { Plus, Trash2, Pencil, Loader2, Package, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Database, Activity, Megaphone } from "lucide-react";
+import { Product, Announcement, Member, Order } from "../types";
+import { getProducts, addProduct, updateProduct, deleteProduct, reorderProducts, migrateFromLocalStorage, getAnnouncements, addAnnouncement, updateAnnouncement, deleteAnnouncement, getAdminMembers, getAdminOrders, updateOrderStatus } from "../services/api";
+import { Plus, Trash2, Pencil, Loader2, Package, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Database, Activity, Megaphone, Users, ShoppingCart } from "lucide-react";
 import ImageUpload from "../components/ImageUpload";
 
 function formatDateTime(iso: string | undefined): string {
@@ -48,6 +48,11 @@ export default function Admin() {
   const [announcementContent, setAnnouncementContent] = useState("");
   const [editingAnnouncementId, setEditingAnnouncementId] = useState<number | null>(null);
   const [addingAnnouncement, setAddingAnnouncement] = useState(false);
+  const [adminTab, setAdminTab] = useState<"products" | "members" | "orders">("products");
+  const [members, setMembers] = useState<Member[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [ordersLoading, setOrdersLoading] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -75,6 +80,20 @@ export default function Admin() {
   useEffect(() => {
     getAnnouncements().then(setAnnouncements).catch(() => setAnnouncements([]));
   }, []);
+
+  useEffect(() => {
+    if (adminTab === "members") {
+      setMembersLoading(true);
+      getAdminMembers().then(setMembers).catch(() => setMembers([])).finally(() => setMembersLoading(false));
+    }
+  }, [adminTab]);
+
+  useEffect(() => {
+    if (adminTab === "orders") {
+      setOrdersLoading(true);
+      getAdminOrders().then(setOrders).catch(() => setOrders([])).finally(() => setOrdersLoading(false));
+    }
+  }, [adminTab]);
 
   const fetchProducts = async (pageNum: number) => {
     try {
@@ -241,6 +260,16 @@ export default function Admin() {
     }
   };
 
+  const handleOrderStatusUpdate = async (orderId: number, paymentStatus?: "unpaid" | "paid", shippingStatus?: "unshipped" | "shipped") => {
+    try {
+      const updated = await updateOrderStatus(orderId, { paymentStatus, shippingStatus });
+      setOrders((prev) => prev.map((o) => (o.id === orderId ? updated : o)));
+    } catch (err) {
+      console.error(err);
+      alert("更新訂單狀態失敗");
+    }
+  };
+
   const handleMigrate = async () => {
     if (!hasLocalStorageData) return;
     setMigrating(true);
@@ -257,14 +286,37 @@ export default function Admin() {
     }
   };
 
+  const tabs = [
+    { id: "products" as const, label: "商品管理", icon: Package },
+    { id: "members" as const, label: "會員清單", icon: Users },
+    { id: "orders" as const, label: "訂單管理", icon: ShoppingCart },
+  ];
+
   return (
     <div className="min-h-screen bg-stone-100 p-4 sm:p-8 font-sans">
       <div className="max-w-5xl mx-auto">
-        <div className="flex items-center gap-3 mb-8">
-          <Package className="w-8 h-8 text-stone-800" />
-          <h1 className="text-3xl font-bold text-stone-800 tracking-tight">商品管理後台</h1>
+        <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
+          <div className="flex items-center gap-3">
+            <Package className="w-8 h-8 text-stone-800" />
+            <h1 className="text-3xl font-bold text-stone-800 tracking-tight">管理後台</h1>
+          </div>
+          <div className="flex gap-2 p-1 bg-stone-200 rounded-xl">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setAdminTab(tab.id)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                  adminTab === tab.id ? "bg-white text-stone-900 shadow-sm" : "text-stone-600 hover:text-stone-900"
+                }`}
+              >
+                <tab.icon className="w-4 h-4" />
+                {tab.label}
+              </button>
+            ))}
+          </div>
         </div>
 
+        {adminTab === "products" && (
         <div className="mb-6 p-4 bg-stone-50 border border-stone-200 rounded-xl flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-2 text-stone-600">
             <Activity className="w-5 h-5" />
@@ -286,7 +338,9 @@ export default function Admin() {
             )}
           </div>
         </div>
+        )}
 
+        {adminTab === "products" && (
         <div className="mb-6 bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden">
           <div className="p-6 border-b border-stone-100 flex items-center gap-2">
             <Megaphone className="w-6 h-6 text-amber-600" />
@@ -389,8 +443,106 @@ export default function Admin() {
             )}
           </div>
         </div>
+        )}
 
-        {hasLocalStorageData && (
+        {adminTab === "members" && (
+        <div className="mb-6 bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden">
+          <div className="p-6 border-b border-stone-100 flex items-center gap-2">
+            <Users className="w-6 h-6 text-stone-600" />
+            <h2 className="text-2xl font-semibold text-stone-800">會員清單</h2>
+          </div>
+          <div className="p-6">
+            {membersLoading ? (
+              <div className="flex justify-center py-16">
+                <Loader2 className="w-8 h-8 animate-spin text-stone-400" />
+              </div>
+            ) : members.length === 0 ? (
+              <p className="text-stone-500 text-center py-12">尚無會員</p>
+            ) : (
+              <ul className="divide-y divide-stone-100">
+                {members.map((m) => (
+                  <li key={m.id} className="p-4 flex items-center gap-4">
+                    {m.pictureUrl ? (
+                      <img src={m.pictureUrl} alt="" className="w-12 h-12 rounded-full" />
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-stone-200 flex items-center justify-center">
+                        <Users className="w-6 h-6 text-stone-400" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-stone-900">{m.displayName || "未設定名稱"}</p>
+                      <p className="text-sm text-stone-500">Line ID: {m.lineUserId}</p>
+                      <p className="text-xs text-stone-400">加入：{formatDateTime(m.createdAt)}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+        )}
+
+        {adminTab === "orders" && (
+        <div className="mb-6 bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden">
+          <div className="p-6 border-b border-stone-100 flex items-center gap-2">
+            <ShoppingCart className="w-6 h-6 text-stone-600" />
+            <h2 className="text-2xl font-semibold text-stone-800">訂單管理</h2>
+          </div>
+          <div className="p-6">
+            {ordersLoading ? (
+              <div className="flex justify-center py-16">
+                <Loader2 className="w-8 h-8 animate-spin text-stone-400" />
+              </div>
+            ) : orders.length === 0 ? (
+              <p className="text-stone-500 text-center py-12">尚無訂單</p>
+            ) : (
+              <ul className="space-y-4">
+                {orders.map((order) => (
+                  <li key={order.id} className="p-4 border border-stone-200 rounded-xl">
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                      <span className="font-semibold text-stone-900">訂單 #{order.id}</span>
+                      <span className="text-sm text-stone-500">{formatDateTime(order.createdAt)}</span>
+                      <span className="text-sm text-stone-600">{(order as Order & { memberName?: string }).memberName || "會員"}</span>
+                    </div>
+                    {order.note && (
+                      <p className="text-sm text-stone-600 mb-2">備註：{order.note}</p>
+                    )}
+                    <div className="space-y-2 mb-4">
+                      {order.items?.map((item) => (
+                        <div key={item.id} className="flex gap-2 text-sm">
+                          <img src={item.imageUrl || ""} alt="" className="w-10 h-10 object-cover rounded" />
+                          <span>{item.productName} × {item.quantity}</span>
+                          <span className="text-emerald-600">NT$ {(item.productPrice * item.quantity).toLocaleString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <select
+                        value={order.paymentStatus}
+                        onChange={(e) => handleOrderStatusUpdate(order.id, e.target.value as "unpaid" | "paid")}
+                        className="px-3 py-1.5 rounded-lg border border-stone-200 text-sm"
+                      >
+                        <option value="unpaid">未付款</option>
+                        <option value="paid">已付款</option>
+                      </select>
+                      <select
+                        value={order.shippingStatus}
+                        onChange={(e) => handleOrderStatusUpdate(order.id, undefined, e.target.value as "unshipped" | "shipped")}
+                        className="px-3 py-1.5 rounded-lg border border-stone-200 text-sm"
+                      >
+                        <option value="unshipped">未出貨</option>
+                        <option value="shipped">已出貨</option>
+                      </select>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+        )}
+
+        {adminTab === "products" && hasLocalStorageData && (
           <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between gap-4">
             <div className="flex items-center gap-2 text-amber-800">
               <Database className="w-5 h-5" />
@@ -408,6 +560,7 @@ export default function Admin() {
           </div>
         )}
 
+        {adminTab === "products" && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Add Product Form */}
           <div className="lg:col-span-1">
@@ -699,6 +852,7 @@ export default function Admin() {
             </div>
           </div>
         </div>
+        )}
       </div>
     </div>
   );

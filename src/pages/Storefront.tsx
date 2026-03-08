@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Product } from "../types";
-import { getProducts, getAnnouncements } from "../services/api";
-import { ShoppingBag, Loader2, ChevronLeft, ChevronRight, Megaphone } from "lucide-react";
+import { getProducts, getAnnouncements, getLineAuthorizeUrl, demoLogin, getCart } from "../services/api";
+import { useAuth } from "../contexts/AuthContext";
+import { ShoppingBag, Loader2, ChevronLeft, ChevronRight, Megaphone, ShoppingCart, User, LogOut } from "lucide-react";
 import { motion } from "motion/react";
 
 function formatDateTime(iso: string | undefined): string {
@@ -34,6 +35,7 @@ function formatDateTime(iso: string | undefined): string {
 const PAGE_SIZE = 15;
 
 export default function Storefront() {
+  const { member, isLoggedIn, logout, refresh, loading: authLoading } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [announcements, setAnnouncements] = useState<{ id: number; content: string }[]>([]);
   const [categories, setCategories] = useState<string[]>(["全部"]);
@@ -42,7 +44,17 @@ export default function Storefront() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [cartCount, setCartCount] = useState(0);
+  const [loggingIn, setLoggingIn] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      getCart().then((items) => setCartCount(items.length)).catch(() => setCartCount(0));
+    } else {
+      setCartCount(0);
+    }
+  }, [isLoggedIn]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -86,10 +98,98 @@ export default function Storefront() {
   return (
     <div className="min-h-screen bg-stone-50">
       <header className="bg-white shadow-sm border-b border-stone-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <ShoppingBag className="w-6 h-6 text-emerald-600" />
             <h1 className="text-xl font-semibold text-stone-900">Dory Babee 選物代購</h1>
+          </div>
+          <div className="flex items-center gap-2 sm:gap-4">
+            {authLoading ? (
+              <Loader2 className="w-5 h-5 animate-spin text-stone-400" />
+            ) : isLoggedIn ? (
+              <>
+                <button
+                  onClick={() => navigate("/cart")}
+                  className="relative p-2 text-stone-600 hover:text-emerald-600 hover:bg-stone-50 rounded-lg transition-colors"
+                  title="購物車"
+                >
+                  <ShoppingCart className="w-5 h-5" />
+                  {cartCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-emerald-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                      {cartCount > 99 ? "99+" : cartCount}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={() => navigate("/my-orders")}
+                  className="p-2 text-stone-600 hover:text-emerald-600 hover:bg-stone-50 rounded-lg transition-colors"
+                  title="我的訂單"
+                >
+                  <User className="w-5 h-5" />
+                </button>
+                <div className="flex items-center gap-2 pl-2 border-l border-stone-200">
+                  {member?.pictureUrl ? (
+                    <img src={member.pictureUrl} alt="" className="w-8 h-8 rounded-full" />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-stone-200 flex items-center justify-center">
+                      <User className="w-4 h-4 text-stone-500" />
+                    </div>
+                  )}
+                  <span className="text-sm font-medium text-stone-700 max-w-[100px] truncate hidden sm:block">
+                    {member?.displayName || "會員"}
+                  </span>
+                  <button
+                    onClick={logout}
+                    className="p-2 text-stone-400 hover:text-red-500 hover:bg-red-50 rounded-lg"
+                    title="登出"
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={async () => {
+                    setLoggingIn(true);
+                    try {
+                      const { url } = await getLineAuthorizeUrl();
+                      if (url) {
+                        window.location.href = url;
+                        return;
+                      }
+                      await demoLogin();
+                      await refresh();
+                    } catch {
+                      await demoLogin();
+                      await refresh();
+                    } finally {
+                      setLoggingIn(false);
+                    }
+                  }}
+                  disabled={loggingIn}
+                  className="px-4 py-2 bg-[#06C755] hover:bg-[#05b34a] text-white font-medium rounded-lg transition-colors flex items-center gap-2 disabled:opacity-70"
+                >
+                  {loggingIn ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                  LINE 登入
+                </button>
+                <button
+                  onClick={async () => {
+                    setLoggingIn(true);
+                    try {
+                      await demoLogin();
+                      await refresh();
+                    } finally {
+                      setLoggingIn(false);
+                    }
+                  }}
+                  disabled={loggingIn}
+                  className="px-3 py-2 text-sm text-stone-600 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors"
+                >
+                  試用登入
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </header>
