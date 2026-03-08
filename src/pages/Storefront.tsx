@@ -8,7 +8,9 @@ import { motion } from "motion/react";
 function formatDateTime(iso: string | undefined): string {
   if (!iso) return "—";
   try {
-    const d = new Date(iso);
+    // 資料庫存 UTC，若無時區標記則視為 UTC
+    const isoUtc = /Z$|[+-]\d{2}:?\d{2}$/.test(iso) ? iso : iso.replace(" ", "T") + "Z";
+    const d = new Date(isoUtc);
     const parts = new Intl.DateTimeFormat("zh-TW", {
       timeZone: "Asia/Taipei",
       year: "numeric",
