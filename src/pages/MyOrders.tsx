@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { getMyOrders } from "../services/api";
-import { Order } from "../types";
+import { Order, OrderItem } from "../types";
 import { Loader2, ArrowLeft, Package, CheckCircle, XCircle } from "lucide-react";
 
 function formatDateTime(iso: string | undefined): string {
@@ -22,6 +22,20 @@ function formatDateTime(iso: string | undefined): string {
   } catch {
     return iso;
   }
+}
+
+function orderTotals(items: OrderItem[] | undefined) {
+  if (!items?.length) return { min: 0, max: 0, hasRange: false };
+  const min = items.reduce((s, it) => s + it.productPrice * it.quantity, 0);
+  const max = items.reduce(
+    (s, it) =>
+      s +
+      (it.productMaxPrice != null && it.productMaxPrice > it.productPrice
+        ? it.productMaxPrice * it.quantity
+        : it.productPrice * it.quantity),
+    0
+  );
+  return { min, max, hasRange: min !== max };
 }
 
 function StatusBadge({ paymentStatus, shippingStatus }: { paymentStatus: string; shippingStatus: string }) {
@@ -158,11 +172,15 @@ export default function MyOrders() {
                       <div className="flex-1 min-w-0">
                         <h4 className="font-medium text-stone-900">{item.productName}</h4>
                         <p className="text-sm text-stone-500">
-                          NT$ {item.productPrice.toLocaleString()} × {item.quantity}
+                          {item.productMaxPrice != null && item.productMaxPrice > item.productPrice
+                            ? `NT$ ${item.productPrice.toLocaleString()} - ${item.productMaxPrice.toLocaleString()} × ${item.quantity}`
+                            : `NT$ ${item.productPrice.toLocaleString()} × ${item.quantity}`}
                         </p>
                       </div>
                       <div className="text-emerald-600 font-semibold">
-                        NT$ {(item.productPrice * item.quantity).toLocaleString()}
+                        {item.productMaxPrice != null && item.productMaxPrice > item.productPrice
+                          ? `NT$ ${(item.productPrice * item.quantity).toLocaleString()} - ${(item.productMaxPrice * item.quantity).toLocaleString()}`
+                          : `NT$ ${(item.productPrice * item.quantity).toLocaleString()}`}
                       </div>
                     </div>
                   ))}
@@ -170,11 +188,9 @@ export default function MyOrders() {
                 <div className="px-4 py-3 bg-stone-50 border-t border-stone-100 text-right">
                   <span className="text-stone-600">小計：</span>
                   <span className="font-bold text-emerald-600 ml-2">
-                    NT${" "}
-                    {order.items?.reduce(
-                      (sum, it) => sum + it.productPrice * it.quantity,
-                      0
-                    ).toLocaleString()}
+                    {orderTotals(order.items).hasRange
+                      ? `NT$ ${orderTotals(order.items).min.toLocaleString()} - NT$ ${orderTotals(order.items).max.toLocaleString()}`
+                      : `NT$ ${orderTotals(order.items).min.toLocaleString()}`}
                   </span>
                 </div>
               </div>

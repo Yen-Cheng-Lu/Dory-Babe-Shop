@@ -119,10 +119,16 @@ db.exec(`
     productId INTEGER NOT NULL,
     productName TEXT NOT NULL,
     productPrice REAL NOT NULL,
+    productMaxPrice REAL,
     quantity INTEGER NOT NULL,
     imageUrl TEXT
   )
 `);
+try {
+  db.exec("ALTER TABLE order_items ADD COLUMN productMaxPrice REAL");
+} catch (e) {
+  /* column may already exist */
+}
 
 function getMemberFromToken(token: string | undefined): { id: number } | null {
   if (!token || !token.startsWith("Bearer ")) return null;
@@ -584,15 +590,15 @@ async function startServer() {
     const memberData = getMemberFromToken(req.headers.authorization);
     if (!memberData) return res.status(401).json({ error: "Unauthorized" });
     const { note } = req.body;
-    const cartRows = db.prepare("SELECT c.*, p.name, p.price, p.imageUrl FROM cart_items c JOIN products p ON c.productId = p.id WHERE c.memberId = ?").all(memberData.id) as Record<string, unknown>[];
+    const cartRows = db.prepare("SELECT c.*, p.name, p.price, p.maxPrice, p.imageUrl FROM cart_items c JOIN products p ON c.productId = p.id WHERE c.memberId = ?").all(memberData.id) as Record<string, unknown>[];
     if (cartRows.length === 0) return res.status(400).json({ error: "Cart is empty" });
     const orderResult = db.prepare("INSERT INTO orders (memberId, note) VALUES (?, ?)").run(memberData.id, note || null);
     const orderId = orderResult.lastInsertRowid;
     const insertItem = db.prepare(
-      "INSERT INTO order_items (orderId, productId, productName, productPrice, quantity, imageUrl) VALUES (?, ?, ?, ?, ?, ?)"
+      "INSERT INTO order_items (orderId, productId, productName, productPrice, productMaxPrice, quantity, imageUrl) VALUES (?, ?, ?, ?, ?, ?, ?)"
     );
     for (const row of cartRows) {
-      insertItem.run(orderId, row.productId, row.name, row.price, row.quantity, row.imageUrl);
+      insertItem.run(orderId, row.productId, row.name, row.price, row.maxPrice ?? null, row.quantity, row.imageUrl);
     }
     db.prepare("DELETE FROM cart_items WHERE memberId = ?").run(memberData.id);
     const order = db.prepare("SELECT * FROM orders WHERE id = ?").get(orderId) as Record<string, unknown>;

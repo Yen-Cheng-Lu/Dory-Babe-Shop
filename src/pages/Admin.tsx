@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Product, Announcement, Member, Order } from "../types";
+import { Product, Announcement, Member, Order, OrderItem } from "../types";
 import { getProducts, addProduct, updateProduct, deleteProduct, reorderProducts, migrateFromLocalStorage, getAnnouncements, addAnnouncement, updateAnnouncement, deleteAnnouncement, getAdminMembers, getAdminOrders, updateOrderStatus, deleteAdminOrder } from "../services/api";
 import { Plus, Trash2, Pencil, Loader2, Package, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Database, Activity, Megaphone, Users, ShoppingCart, Check } from "lucide-react";
 import ImageUpload from "../components/ImageUpload";
@@ -293,6 +293,20 @@ export default function Admin() {
     }
   };
 
+  const orderTotals = (items: OrderItem[] | undefined) => {
+    if (!items?.length) return { min: 0, max: 0, hasRange: false };
+    const min = items.reduce((s, it) => s + it.productPrice * it.quantity, 0);
+    const max = items.reduce(
+      (s, it) =>
+        s +
+        (it.productMaxPrice != null && it.productMaxPrice > it.productPrice
+          ? it.productMaxPrice * it.quantity
+          : it.productPrice * it.quantity),
+      0
+    );
+    return { min, max, hasRange: min !== max };
+  };
+
   const handleOrderDelete = async (orderId: number) => {
     if (!confirm("確定要刪除此訂單嗎？此操作無法復原。")) return;
     setOrderDeletingId(orderId);
@@ -561,10 +575,22 @@ export default function Admin() {
                         <div key={item.id} className="flex gap-2 text-sm">
                           <img src={item.imageUrl || ""} alt="" className="w-10 h-10 object-cover rounded" />
                           <span>{item.productName} × {item.quantity}</span>
-                          <span className="text-emerald-600">NT$ {(item.productPrice * item.quantity).toLocaleString()}</span>
+                          <span className="text-emerald-600">
+                            {item.productMaxPrice != null && item.productMaxPrice > item.productPrice
+                              ? `NT$ ${(item.productPrice * item.quantity).toLocaleString()} - ${(item.productMaxPrice * item.quantity).toLocaleString()}`
+                              : `NT$ ${(item.productPrice * item.quantity).toLocaleString()}`}
+                          </span>
                         </div>
                       ))}
                     </div>
+                    {order.items && order.items.length > 0 && (
+                      <div className="text-sm text-stone-600 mb-4">
+                        小計：
+                        {orderTotals(order.items).hasRange
+                          ? ` NT$ ${orderTotals(order.items).min.toLocaleString()} - NT$ ${orderTotals(order.items).max.toLocaleString()}`
+                          : ` NT$ ${orderTotals(order.items).min.toLocaleString()}`}
+                      </div>
+                    )}
                     <div className="flex flex-wrap items-center gap-2">
                       <select
                         value={orderEdits[order.id]?.paymentStatus ?? order.paymentStatus}

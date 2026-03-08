@@ -24,12 +24,16 @@ export default function Cart() {
       .finally(() => setLoading(false));
   }, [isLoggedIn]);
 
-  const total = items.reduce((sum, it) => sum + (it.product?.price ?? 0) * it.quantity, 0);
-  const hasPriceRange = items.some(
-    (it) =>
-      it.product?.maxPrice != null &&
-      it.product.maxPrice > (it.product?.price ?? 0)
+  const minTotal = items.reduce((sum, it) => sum + (it.product?.price ?? 0) * it.quantity, 0);
+  const maxTotal = items.reduce(
+    (sum, it) =>
+      sum +
+      ((it.product?.maxPrice != null && it.product.maxPrice > (it.product?.price ?? 0))
+        ? it.product.maxPrice * it.quantity
+        : (it.product?.price ?? 0) * it.quantity),
+    0
   );
+  const hasPriceRange = minTotal !== maxTotal;
 
   const handleUpdateQty = async (productId: number, quantity: number) => {
     if (quantity < 1) return;
@@ -130,7 +134,10 @@ export default function Cart() {
                       {item.product?.name}
                     </h3>
                     <p className="text-emerald-600 font-semibold">
-                      NT$ {(item.product?.price ?? 0).toLocaleString()}
+                      {item.product?.maxPrice != null &&
+                      item.product.maxPrice > (item.product?.price ?? 0)
+                        ? `NT$ ${(item.product.price ?? 0).toLocaleString()} - ${item.product.maxPrice.toLocaleString()}`
+                        : `NT$ ${(item.product?.price ?? 0).toLocaleString()}`}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -178,12 +185,12 @@ export default function Cart() {
               <div>
                 <span className="text-stone-600">總計：</span>
                 {hasPriceRange ? (
-                  <span className="text-lg font-semibold text-amber-600 ml-2">
-                    請與賣家確認金額
+                  <span className="text-xl font-bold text-emerald-600 ml-2">
+                    NT$ {minTotal.toLocaleString()} - NT$ {maxTotal.toLocaleString()}
                   </span>
                 ) : (
                   <span className="text-2xl font-bold text-emerald-600 ml-2">
-                    NT$ {total.toLocaleString()}
+                    NT$ {minTotal.toLocaleString()}
                   </span>
                 )}
               </div>

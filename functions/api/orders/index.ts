@@ -45,7 +45,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const body = (await context.request.json()) as { note?: string };
   const note = body.note || null;
   const cartRows = await context.env.DB.prepare(
-    "SELECT c.*, p.name, p.price, p.imageUrl FROM cart_items c JOIN products p ON c.productId = p.id WHERE c.memberId = ?"
+    "SELECT c.*, p.name, p.price, p.maxPrice, p.imageUrl FROM cart_items c JOIN products p ON c.productId = p.id WHERE c.memberId = ?"
   )
     .bind(memberId)
     .all();
@@ -56,10 +56,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     .run();
   const orderId = orderResult.meta.last_row_id;
   const insertStmt = context.env.DB.prepare(
-    "INSERT INTO order_items (orderId, productId, productName, productPrice, quantity, imageUrl) VALUES (?, ?, ?, ?, ?, ?)"
+    "INSERT INTO order_items (orderId, productId, productName, productPrice, productMaxPrice, quantity, imageUrl) VALUES (?, ?, ?, ?, ?, ?, ?)"
   );
   for (const row of items as Record<string, unknown>[]) {
-    await insertStmt.bind(orderId, row.productId, row.name, row.price, row.quantity, row.imageUrl).run();
+    await insertStmt
+      .bind(orderId, row.productId, row.name, row.price, row.maxPrice ?? null, row.quantity, row.imageUrl)
+      .run();
   }
   await context.env.DB.prepare("DELETE FROM cart_items WHERE memberId = ?").bind(memberId).run();
   const order = await context.env.DB.prepare("SELECT * FROM orders WHERE id = ?")

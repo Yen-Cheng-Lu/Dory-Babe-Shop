@@ -45,6 +45,7 @@ export interface OrderItem {
   productId: number;
   productName: string;
   productPrice: number;
+  productMaxPrice?: number | null;
   quantity: number;
   imageUrl: string | null;
 }
