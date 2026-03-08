@@ -539,8 +539,15 @@ export default function Admin() {
               <p className="text-stone-500 text-center py-12">尚無訂單</p>
             ) : (
               <ul className="space-y-4">
-                {orders.map((order) => (
-                  <li key={order.id} className="p-4 border border-stone-200 rounded-xl">
+                {orders.map((order) => {
+                  const paymentStatus = orderEdits[order.id]?.paymentStatus ?? order.paymentStatus;
+                  const shippingStatus = orderEdits[order.id]?.shippingStatus ?? order.shippingStatus;
+                  const isCompleted = paymentStatus === "paid" && shippingStatus === "shipped";
+                  return (
+                  <li
+                    key={order.id}
+                    className={`p-4 border border-stone-200 rounded-xl ${isCompleted ? "bg-stone-100" : ""}`}
+                  >
                     <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                       <span className="font-semibold text-stone-900">訂單 #{order.id}</span>
                       <span className="text-sm text-stone-500">{formatDateTime(order.createdAt)}</span>
@@ -613,7 +620,8 @@ export default function Admin() {
                       </button>
                     </div>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             )}
           </div>
