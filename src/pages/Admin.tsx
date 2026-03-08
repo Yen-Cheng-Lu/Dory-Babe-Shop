@@ -8,12 +8,21 @@ function formatDateTime(iso: string | undefined): string {
   if (!iso) return "—";
   try {
     const d = new Date(iso);
-    const y = d.getFullYear();
-    const m = d.getMonth() + 1;
-    const day = d.getDate();
-    const h = d.getHours();
-    const min = d.getMinutes().toString().padStart(2, "0");
-    return `${y}/${m}/${day} ${h}:${min}`;
+    const parts = new Intl.DateTimeFormat("zh-TW", {
+      timeZone: "Asia/Taipei",
+      year: "numeric",
+      month: "numeric",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).formatToParts(d);
+    const year = parts.find((p) => p.type === "year")?.value;
+    const month = parts.find((p) => p.type === "month")?.value;
+    const day = parts.find((p) => p.type === "day")?.value;
+    const hour = parts.find((p) => p.type === "hour")?.value;
+    const minute = parts.find((p) => p.type === "minute")?.value;
+    return `${year}/${month}/${day} ${hour}:${minute}`;
   } catch {
     return iso;
   }
