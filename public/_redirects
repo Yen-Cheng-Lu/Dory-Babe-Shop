@@ -1,4 +1,6 @@
 # Cloudflare Pages - SPA 路由支援
 # /api/* 保留給 Pages Functions 處理，其餘導向 index.html
-/api/*  /api/:splat  200
-/*     /index.html   200
+# 將 /index.html 放最前避免 infinite loop 警告
+/index.html  /index.html  200
+/api/*      /api/:splat  200
+/*          /index.html  200
