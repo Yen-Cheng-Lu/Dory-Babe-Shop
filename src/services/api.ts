@@ -156,8 +156,16 @@ export const migrateFromLocalStorage = async (): Promise<{ migrated: number }> =
 };
 
 /** 認證 API */
-export const getLineAuthorizeUrl = async (): Promise<{ url: string }> => {
-  return request<{ url: string }>(`${AUTH_BASE}/line/authorize`, { skipAuth: true });
+export const getLineAuthStatus = async (): Promise<{ configured: boolean }> => {
+  try {
+    return await request<{ configured: boolean }>(`${AUTH_BASE}/line/status`, { skipAuth: true });
+  } catch {
+    return { configured: false };
+  }
+};
+
+export const getLineAuthorizeUrl = async (): Promise<{ url: string; configured?: boolean }> => {
+  return request<{ url: string; configured?: boolean }>(`${AUTH_BASE}/line/authorize`, { skipAuth: true });
 };
 
 export const getMe = async (): Promise<Member | null> => {

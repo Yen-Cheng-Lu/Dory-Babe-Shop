@@ -1,3 +1,4 @@
+import "dotenv/config";
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import Database from "better-sqlite3";
@@ -391,16 +392,21 @@ async function startServer() {
   });
 
   // Auth API
+  app.get("/api/auth/line/status", (req, res) => {
+    const configured = !!(process.env.LINE_CHANNEL_ID && process.env.LINE_CHANNEL_SECRET);
+    res.json({ configured });
+  });
+
   app.get("/api/auth/line/authorize", (req, res) => {
     const clientId = process.env.LINE_CHANNEL_ID;
     const baseUrl = process.env.BASE_URL || `http://localhost:${PORT}`;
     const redirectUri = `${baseUrl}/api/auth/line/callback`;
     if (!clientId) {
-      return res.json({ url: "" });
+      return res.json({ url: "", configured: false });
     }
     const state = crypto.randomBytes(16).toString("hex");
     const url = `https://access.line.me/oauth2/v2.1/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=profile%20openid`;
-    res.json({ url });
+    res.json({ url, configured: true });
   });
 
   app.get("/api/auth/line/callback", async (req, res) => {

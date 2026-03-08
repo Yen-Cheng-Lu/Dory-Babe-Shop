@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Product } from "../types";
-import { getProducts, getAnnouncements, getLineAuthorizeUrl, demoLogin, getCart } from "../services/api";
+import { getProducts, getAnnouncements, getLineAuthorizeUrl, getLineAuthStatus, demoLogin, getCart } from "../services/api";
 import { useAuth } from "../contexts/AuthContext";
 import { ShoppingBag, Loader2, ChevronLeft, ChevronRight, Megaphone, ShoppingCart, User, LogOut } from "lucide-react";
 import { motion } from "motion/react";
@@ -46,7 +46,12 @@ export default function Storefront() {
   const [error, setError] = useState<string | null>(null);
   const [cartCount, setCartCount] = useState(0);
   const [loggingIn, setLoggingIn] = useState(false);
+  const [lineConfigured, setLineConfigured] = useState<boolean | null>(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    getLineAuthStatus().then((s) => setLineConfigured(s.configured)).catch(() => setLineConfigured(false));
+  }, []);
 
   useEffect(() => {
     if (isLoggedIn) {
@@ -151,6 +156,12 @@ export default function Storefront() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={async () => {
+                    if (lineConfigured === false) {
+                      alert(
+                        "LINE 登入尚未設定。\n\n請在專案根目錄的 .env 檔案中填入：\n• LINE_CHANNEL_ID\n• LINE_CHANNEL_SECRET\n\n並至 LINE Developers Console 加入 Callback URL：\nhttp://localhost:3000/api/auth/line/callback\n\n設定完成後請重新啟動開發伺服器。"
+                      );
+                      return;
+                    }
                     setLoggingIn(true);
                     try {
                       const { url } = await getLineAuthorizeUrl();
@@ -158,20 +169,20 @@ export default function Storefront() {
                         window.location.href = url;
                         return;
                       }
-                      await demoLogin();
-                      await refresh();
+                      alert("LINE 登入尚未設定，請先完成 .env 設定。");
                     } catch {
-                      await demoLogin();
-                      await refresh();
+                      alert("無法取得 LINE 登入連結，請檢查 .env 設定。");
                     } finally {
                       setLoggingIn(false);
                     }
                   }}
                   disabled={loggingIn}
                   className="px-4 py-2 bg-[#06C755] hover:bg-[#05b34a] text-white font-medium rounded-lg transition-colors flex items-center gap-2 disabled:opacity-70"
+                  title={lineConfigured === false ? "點擊查看設定說明" : undefined}
                 >
                   {loggingIn ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                   LINE 登入
+                  {lineConfigured === false && "（未設定）"}
                 </button>
                 <button
                   onClick={async () => {
