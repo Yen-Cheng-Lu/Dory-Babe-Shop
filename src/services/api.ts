@@ -251,3 +251,7 @@ export const updateOrderStatus = async (
     body: JSON.stringify(data),
   });
 };
+
+export const deleteAdminOrder = async (id: number): Promise<void> => {
+  await request(`${ADMIN_BASE}/orders/${id}`, { method: "DELETE" });
+};

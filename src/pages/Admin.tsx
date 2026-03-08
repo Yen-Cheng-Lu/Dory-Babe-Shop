@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Product, Announcement, Member, Order } from "../types";
-import { getProducts, addProduct, updateProduct, deleteProduct, reorderProducts, migrateFromLocalStorage, getAnnouncements, addAnnouncement, updateAnnouncement, deleteAnnouncement, getAdminMembers, getAdminOrders, updateOrderStatus } from "../services/api";
-import { Plus, Trash2, Pencil, Loader2, Package, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Database, Activity, Megaphone, Users, ShoppingCart } from "lucide-react";
+import { getProducts, addProduct, updateProduct, deleteProduct, reorderProducts, migrateFromLocalStorage, getAnnouncements, addAnnouncement, updateAnnouncement, deleteAnnouncement, getAdminMembers, getAdminOrders, updateOrderStatus, deleteAdminOrder } from "../services/api";
+import { Plus, Trash2, Pencil, Loader2, Package, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Database, Activity, Megaphone, Users, ShoppingCart, Check } from "lucide-react";
 import ImageUpload from "../components/ImageUpload";
 
 function formatDateTime(iso: string | undefined): string {
@@ -53,6 +53,9 @@ export default function Admin() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
   const [ordersLoading, setOrdersLoading] = useState(false);
+  const [orderEdits, setOrderEdits] = useState<Record<number, { paymentStatus: string; shippingStatus: string }>>({});
+  const [orderSavingId, setOrderSavingId] = useState<number | null>(null);
+  const [orderDeletingId, setOrderDeletingId] = useState<number | null>(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -91,7 +94,18 @@ export default function Admin() {
   useEffect(() => {
     if (adminTab === "orders") {
       setOrdersLoading(true);
-      getAdminOrders().then(setOrders).catch(() => setOrders([])).finally(() => setOrdersLoading(false));
+      getAdminOrders()
+        .then((data) => {
+          setOrders(data);
+          setOrderEdits(
+            data.reduce(
+              (acc, o) => ({ ...acc, [o.id]: { paymentStatus: o.paymentStatus, shippingStatus: o.shippingStatus } }),
+              {}
+            )
+          );
+        })
+        .catch(() => setOrders([]))
+        .finally(() => setOrdersLoading(false));
     }
   }, [adminTab]);
 
@@ -260,13 +274,41 @@ export default function Admin() {
     }
   };
 
-  const handleOrderStatusUpdate = async (orderId: number, paymentStatus?: "unpaid" | "paid", shippingStatus?: "unshipped" | "shipped") => {
+  const handleOrderStatusConfirm = async (orderId: number) => {
+    const edit = orderEdits[orderId];
+    if (!edit) return;
+    setOrderSavingId(orderId);
     try {
-      const updated = await updateOrderStatus(orderId, { paymentStatus, shippingStatus });
+      const updated = await updateOrderStatus(orderId, {
+        paymentStatus: edit.paymentStatus as "unpaid" | "paid",
+        shippingStatus: edit.shippingStatus as "unshipped" | "shipped",
+      });
       setOrders((prev) => prev.map((o) => (o.id === orderId ? updated : o)));
+      setOrderEdits((prev) => ({ ...prev, [orderId]: { paymentStatus: updated.paymentStatus, shippingStatus: updated.shippingStatus } }));
     } catch (err) {
       console.error(err);
       alert("更新訂單狀態失敗");
+    } finally {
+      setOrderSavingId(null);
+    }
+  };
+
+  const handleOrderDelete = async (orderId: number) => {
+    if (!confirm("確定要刪除此訂單嗎？此操作無法復原。")) return;
+    setOrderDeletingId(orderId);
+    try {
+      await deleteAdminOrder(orderId);
+      setOrders((prev) => prev.filter((o) => o.id !== orderId));
+      setOrderEdits((prev) => {
+        const next = { ...prev };
+        delete next[orderId];
+        return next;
+      });
+    } catch (err) {
+      console.error(err);
+      alert("刪除訂單失敗");
+    } finally {
+      setOrderDeletingId(null);
     }
   };
 
@@ -516,23 +558,59 @@ export default function Admin() {
                         </div>
                       ))}
                     </div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <select
-                        value={order.paymentStatus}
-                        onChange={(e) => handleOrderStatusUpdate(order.id, e.target.value as "unpaid" | "paid")}
+                        value={orderEdits[order.id]?.paymentStatus ?? order.paymentStatus}
+                        onChange={(e) =>
+                          setOrderEdits((prev) => ({
+                            ...prev,
+                            [order.id]: {
+                              ...(prev[order.id] ?? { paymentStatus: order.paymentStatus, shippingStatus: order.shippingStatus }),
+                              paymentStatus: e.target.value,
+                            },
+                          }))
+                        }
                         className="px-3 py-1.5 rounded-lg border border-stone-200 text-sm"
+                        aria-label="付款狀態"
                       >
                         <option value="unpaid">未付款</option>
                         <option value="paid">已付款</option>
                       </select>
                       <select
-                        value={order.shippingStatus}
-                        onChange={(e) => handleOrderStatusUpdate(order.id, undefined, e.target.value as "unshipped" | "shipped")}
+                        value={orderEdits[order.id]?.shippingStatus ?? order.shippingStatus}
+                        onChange={(e) =>
+                          setOrderEdits((prev) => ({
+                            ...prev,
+                            [order.id]: {
+                              ...(prev[order.id] ?? { paymentStatus: order.paymentStatus, shippingStatus: order.shippingStatus }),
+                              shippingStatus: e.target.value,
+                            },
+                          }))
+                        }
                         className="px-3 py-1.5 rounded-lg border border-stone-200 text-sm"
+                        aria-label="出貨狀態"
                       >
                         <option value="unshipped">未出貨</option>
                         <option value="shipped">已出貨</option>
                       </select>
+                      <button
+                        type="button"
+                        onClick={() => handleOrderStatusConfirm(order.id)}
+                        disabled={orderSavingId === order.id}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white text-sm font-medium rounded-lg transition-colors"
+                      >
+                        {orderSavingId === order.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                        確認
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleOrderDelete(order.id)}
+                        disabled={orderDeletingId === order.id}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-red-600 hover:bg-red-50 disabled:opacity-50 text-sm font-medium rounded-lg transition-colors"
+                      >
+                        {orderDeletingId === order.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                        刪除
+                      </button>
                     </div>
                   </li>
                 ))}

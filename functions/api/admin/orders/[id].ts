@@ -37,3 +37,13 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
     .all();
   return Response.json({ ...order, items: items || [] }, { headers: { "Access-Control-Allow-Origin": "*" } });
 };
+
+export const onRequestDelete: PagesFunction<Env> = async (context) => {
+  if (!context.env.DB) return Response.json({ error: "D1 未綁定" }, { status: 503 });
+  const id = Number(context.params.id);
+  if (isNaN(id)) return Response.json({ error: "Invalid order ID" }, { status: 400 });
+  await context.env.DB.prepare("DELETE FROM order_items WHERE orderId = ?").bind(id).run();
+  const result = await context.env.DB.prepare("DELETE FROM orders WHERE id = ?").bind(id).run();
+  if (result.meta.changes === 0) return Response.json({ error: "Order not found" }, { status: 404 });
+  return Response.json({ success: true }, { headers: { "Access-Control-Allow-Origin": "*" } });
+};

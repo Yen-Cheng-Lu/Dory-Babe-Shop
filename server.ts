@@ -637,6 +637,14 @@ async function startServer() {
     res.json({ ...order, items });
   });
 
+  app.delete("/api/admin/orders/:id", (req, res) => {
+    const id = Number(req.params.id);
+    db.prepare("DELETE FROM order_items WHERE orderId = ?").run(id);
+    const result = db.prepare("DELETE FROM orders WHERE id = ?").run(id);
+    if (result.changes === 0) return res.status(404).json({ error: "Order not found" });
+    res.json({ success: true });
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
