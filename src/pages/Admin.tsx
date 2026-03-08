@@ -274,16 +274,16 @@ export default function Admin() {
         <div className="mb-6 bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden">
           <div className="p-6 border-b border-stone-100 flex items-center gap-2">
             <Megaphone className="w-6 h-6 text-amber-600" />
-            <h2 className="text-xl font-semibold text-stone-800">佈告欄管理</h2>
+            <h2 className="text-2xl font-semibold text-stone-800">佈告欄管理</h2>
           </div>
           <div className="p-6">
             <form onSubmit={handleAddAnnouncement} className="flex gap-3 mb-6">
-              <input
-                type="text"
+              <textarea
+                rows={3}
                 value={announcementContent}
                 onChange={(e) => setAnnouncementContent(e.target.value)}
-                placeholder="輸入佈告欄內容（將顯示在商品首頁）"
-                className="flex-1 px-4 py-2 rounded-xl border border-stone-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
+                placeholder="輸入佈告欄內容（可換行，將顯示在商品首頁）"
+                className="flex-1 px-4 py-2 rounded-xl border border-stone-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none resize-y min-h-[4rem]"
               />
               <button
                 type="submit"
@@ -301,45 +301,48 @@ export default function Admin() {
                 {announcements.map((a) => (
                   <li key={a.id} className="p-4 bg-stone-50 rounded-xl border border-stone-200 flex items-center justify-between gap-4">
                     {editingAnnouncementId === a.id ? (
-                      <div className="flex-1 flex gap-2 items-center">
-                        <input
-                          type="text"
+                      <div className="flex-1 flex flex-col gap-2">
+                        <textarea
+                          rows={4}
                           defaultValue={a.content}
                           id={`ann-content-${a.id}`}
-                          className="flex-1 px-3 py-2 rounded-lg border border-stone-300"
+                          className="w-full px-3 py-2 rounded-lg border border-stone-300 resize-y"
                         />
-                        <select
-                          id={`ann-active-${a.id}`}
-                          defaultValue={String(a.isActive)}
-                          className="px-3 py-2 rounded-lg border border-stone-300"
-                        >
-                          <option value="1">顯示</option>
-                          <option value="0">隱藏</option>
-                        </select>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const content = (document.getElementById(`ann-content-${a.id}`) as HTMLInputElement)?.value;
-                            const isActive = Number((document.getElementById(`ann-active-${a.id}`) as HTMLSelectElement)?.value);
-                            handleUpdateAnnouncement(a.id, content || a.content, isActive);
-                          }}
-                          className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-sm"
-                        >
-                          儲存
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setEditingAnnouncementId(null)}
-                          className="px-3 py-1.5 bg-stone-200 text-stone-700 rounded-lg text-sm"
-                        >
-                          取消
-                        </button>
+                        <div className="flex gap-2 items-center flex-wrap">
+                          <select
+                            id={`ann-active-${a.id}`}
+                            defaultValue={String(a.isActive)}
+                            className="px-3 py-2 rounded-lg border border-stone-300"
+                            aria-label="顯示狀態"
+                          >
+                            <option value="1">顯示</option>
+                            <option value="0">隱藏</option>
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const content = (document.getElementById(`ann-content-${a.id}`) as HTMLTextAreaElement)?.value;
+                              const isActive = Number((document.getElementById(`ann-active-${a.id}`) as HTMLSelectElement)?.value);
+                              handleUpdateAnnouncement(a.id, content || a.content, isActive);
+                            }}
+                            className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-sm"
+                          >
+                            儲存
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingAnnouncementId(null)}
+                            className="px-3 py-1.5 bg-stone-200 text-stone-700 rounded-lg text-sm"
+                          >
+                            取消
+                          </button>
+                        </div>
                       </div>
                     ) : (
                       <>
                         <div className="flex-1 min-w-0">
-                          <p className="text-stone-800">{a.content}</p>
-                          <p className="text-xs text-stone-400 mt-1">
+                          <p className="text-stone-800 whitespace-pre-wrap leading-relaxed">{a.content}</p>
+                          <p className="text-sm text-stone-500 mt-2">
                             建立：{formatDateTime(a.createdAt)} · 修改：{formatDateTime(a.updatedAt)}
                             {a.isActive ? " · 顯示中" : " · 已隱藏"}
                           </p>
@@ -597,7 +600,7 @@ export default function Admin() {
                           NT$ {product.price.toLocaleString()}
                           {(product.maxPrice !== undefined && product.maxPrice > product.price) && ` - ${product.maxPrice.toLocaleString()}`}
                         </div>
-                        <div className="text-xs text-stone-400 mt-1">
+                        <div className="text-sm text-stone-500 mt-1">
                           建立：{formatDateTime(product.createdAt)}
                           {(product.updatedAt && product.updatedAt !== product.createdAt) && ` · 修改：${formatDateTime(product.updatedAt)}`}
                         </div>

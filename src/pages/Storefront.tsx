@@ -84,7 +84,7 @@ export default function Storefront() {
             <Megaphone className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
             <div className="flex-1 space-y-2">
               {announcements.map((a) => (
-                <p key={a.id} className="text-amber-900 text-sm leading-relaxed">
+                <p key={a.id} className="text-amber-900 text-base leading-relaxed whitespace-pre-wrap">
                   {a.content}
                 </p>
               ))}
@@ -159,7 +159,7 @@ export default function Storefront() {
                             {(product.maxPrice !== undefined && product.maxPrice > product.price) && ` - ${product.maxPrice.toLocaleString()}`}
                           </span>
                         </div>
-                        <div className="mt-2 pt-2 border-t border-stone-100 flex gap-3 text-xs text-stone-400">
+                        <div className="mt-2 pt-2 border-t border-stone-100 flex gap-3 text-sm text-stone-500">
                           <span>建立：{formatDateTime(product.createdAt)}</span>
                           {(product.updatedAt && product.updatedAt !== product.createdAt) && (
                             <span>修改：{formatDateTime(product.updatedAt)}</span>
