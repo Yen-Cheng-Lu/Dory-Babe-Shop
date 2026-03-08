@@ -584,7 +584,7 @@ export default function Admin() {
                       ))}
                     </div>
                     {order.items && order.items.length > 0 && (
-                      <div className="text-sm text-stone-600 mb-4">
+                      <div className="text-lg font-bold text-emerald-600 mb-4">
                         小計：
                         {orderTotals(order.items).hasRange
                           ? ` NT$ ${orderTotals(order.items).min.toLocaleString()} - NT$ ${orderTotals(order.items).max.toLocaleString()}`
