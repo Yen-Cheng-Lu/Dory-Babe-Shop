@@ -9,7 +9,12 @@ function formatDateTime(iso: string | undefined): string {
   if (!iso) return "—";
   try {
     const d = new Date(iso);
-    return d.toLocaleString("zh-TW", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+    const y = d.getFullYear();
+    const m = d.getMonth() + 1;
+    const day = d.getDate();
+    const h = d.getHours();
+    const min = d.getMinutes().toString().padStart(2, "0");
+    return `${y}/${m}/${day} ${h}:${min}`;
   } catch {
     return iso;
   }
@@ -159,10 +164,10 @@ export default function Storefront() {
                             {(product.maxPrice !== undefined && product.maxPrice > product.price) && ` - ${product.maxPrice.toLocaleString()}`}
                           </span>
                         </div>
-                        <div className="mt-2 pt-2 border-t border-stone-100 flex gap-3 text-sm text-stone-500">
-                          <span>建立：{formatDateTime(product.createdAt)}</span>
+                        <div className="mt-2 pt-2 border-t border-stone-100 flex flex-wrap gap-x-4 gap-y-0 text-sm text-stone-500">
+                          <span className="whitespace-nowrap">建立：{formatDateTime(product.createdAt)}</span>
                           {(product.updatedAt && product.updatedAt !== product.createdAt) && (
-                            <span>修改：{formatDateTime(product.updatedAt)}</span>
+                            <span className="whitespace-nowrap">修改：{formatDateTime(product.updatedAt)}</span>
                           )}
                         </div>
                       </div>
