@@ -4,6 +4,7 @@
 	"pages_build_output_dir": "./dist",
 	// 部署後請至 Cloudflare Dashboard > Pages > 專案 > Settings > Environment variables 設定：
 	// LINE_CHANNEL_ID、LINE_CHANNEL_SECRET（用於 LINE 登入）
+	// ADMIN_LINE_USER_IDS：管理員 LINE User ID，多個以逗號分隔，例如：U1234567890,U9876543210
 	"compatibility_date": "2025-03-04",
 	"compatibility_flags": [
 		"nodejs_compat"

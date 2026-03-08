@@ -13,6 +13,7 @@ interface AuthContextValue {
   member: Member | null;
   loading: boolean;
   isLoggedIn: boolean;
+  isAdmin: boolean;
   logout: () => void;
   refresh: () => Promise<void>;
 }
@@ -55,6 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         member,
         loading,
         isLoggedIn: !!member,
+        isAdmin: !!(member?.isAdmin),
         logout,
         refresh,
       }}

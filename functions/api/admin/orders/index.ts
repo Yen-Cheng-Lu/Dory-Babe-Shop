@@ -3,11 +3,11 @@
  * 路徑: /api/admin/orders
  */
 
-interface Env {
-  DB: D1Database;
-}
+import { requireAdmin, type AdminEnv } from "../../../lib/admin";
 
-export const onRequestGet: PagesFunction<Env> = async (context) => {
+export const onRequestGet: PagesFunction<AdminEnv> = async (context) => {
+  const authResult = await requireAdmin(context);
+  if (!authResult.ok) return authResult.response;
   if (!context.env.DB) return Response.json({ error: "D1 未綁定" }, { status: 503 });
   const { results } = await context.env.DB.prepare(
     "SELECT o.*, m.displayName as memberName FROM orders o LEFT JOIN members m ON o.memberId = m.id ORDER BY o.createdAt DESC"

@@ -29,6 +29,7 @@ export interface Member {
   pictureUrl: string | null;
   createdAt: string;
   lastLoginAt?: string | null;
+  isAdmin?: boolean;
 }
 
 export interface CartItem {

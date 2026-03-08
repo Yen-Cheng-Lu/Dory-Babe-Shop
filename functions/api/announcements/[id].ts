@@ -3,9 +3,9 @@
  * 路徑: /api/announcements/:id
  */
 
-interface Env {
-  DB: D1Database;
-}
+import { requireAdmin, type AdminEnv } from "../../lib/admin";
+
+interface Env extends AdminEnv {}
 
 interface Announcement {
   id: number;
@@ -45,6 +45,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 };
 
 export const onRequestPut: PagesFunction<Env> = async (context) => {
+  const authResult = await requireAdmin(context);
+  if (!authResult.ok) return authResult.response;
   if (!context.env.DB) {
     return Response.json({ error: "D1 未綁定" }, { status: 503 });
   }
@@ -99,6 +101,8 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
 };
 
 export const onRequestDelete: PagesFunction<Env> = async (context) => {
+  const authResult = await requireAdmin(context);
+  if (!authResult.ok) return authResult.response;
   if (!context.env.DB) {
     return Response.json({ error: "D1 未綁定" }, { status: 503 });
   }

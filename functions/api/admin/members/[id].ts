@@ -3,11 +3,11 @@
  * 路徑: /api/admin/members/:id
  */
 
-interface Env {
-  DB: D1Database;
-}
+import { requireAdmin, type AdminEnv } from "../../../lib/admin";
 
-export const onRequestDelete: PagesFunction<Env> = async (context) => {
+export const onRequestDelete: PagesFunction<AdminEnv> = async (context) => {
+  const authResult = await requireAdmin(context);
+  if (!authResult.ok) return authResult.response;
   if (!context.env.DB) return Response.json({ error: "D1 未綁定" }, { status: 503 });
   const id = Number(context.params.id);
   if (isNaN(id)) return Response.json({ error: "Invalid member ID" }, { status: 400 });

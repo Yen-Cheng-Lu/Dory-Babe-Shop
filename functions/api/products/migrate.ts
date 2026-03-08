@@ -4,9 +4,7 @@
  * 路徑: /api/products/migrate
  */
 
-interface Env {
-  DB: D1Database;
-}
+import { requireAdmin, type AdminEnv } from "../../lib/admin";
 
 interface ProductInput {
   id?: number;
@@ -22,7 +20,9 @@ interface ProductInput {
   createdAt?: string;
 }
 
-export const onRequestPost: PagesFunction<Env> = async (context) => {
+export const onRequestPost: PagesFunction<AdminEnv> = async (context) => {
+  const authResult = await requireAdmin(context);
+  if (!authResult.ok) return authResult.response;
   if (!context.env.DB) {
     return Response.json(
       { error: "D1 未綁定", message: "請至 Cloudflare Dashboard 新增 D1 綁定，變數名稱必須為 DB" },

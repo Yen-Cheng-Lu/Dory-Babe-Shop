@@ -136,14 +136,39 @@ try {
 } catch (e) {
   /* columns may already exist */
 }
+try {
+  db.exec("ALTER TABLE members ADD COLUMN lastLoginAt TEXT");
+} catch (e) {
+  /* column may already exist */
+}
+try {
+  db.exec("ALTER TABLE members ADD COLUMN isAdmin INTEGER DEFAULT 0");
+  db.exec("UPDATE members SET isAdmin = 1");
+} catch (e) {
+  /* column may already exist */
+}
 
-function getMemberFromToken(token: string | undefined): { id: number } | null {
+function getMemberFromToken(token: string | undefined): { id: number; lineUserId: string; isAdmin: number } | null {
   if (!token || !token.startsWith("Bearer ")) return null;
   const t = token.slice(7);
   const row = db.prepare(
-    "SELECT id FROM members WHERE sessionToken = ? AND (sessionExpiresAt IS NULL OR sessionExpiresAt > datetime('now'))"
-  ).get(t) as { id: number } | undefined;
-  return row ? { id: row.id } : null;
+    "SELECT id, lineUserId, COALESCE(isAdmin, 0) as isAdmin FROM members WHERE sessionToken = ? AND (sessionExpiresAt IS NULL OR sessionExpiresAt > datetime('now'))"
+  ).get(t) as { id: number; lineUserId: string; isAdmin: number } | undefined;
+  return row ? { id: row.id, lineUserId: row.lineUserId, isAdmin: row.isAdmin } : null;
+}
+
+const ADMIN_LINE_USER_IDS = (process.env.ADMIN_LINE_USER_IDS || "").split(",").map((s) => s.trim()).filter(Boolean);
+
+function requireAdmin(req: express.Request, res: express.Response, next: express.NextFunction) {
+  const memberData = getMemberFromToken(req.headers.authorization);
+  if (!memberData) {
+    return res.status(401).json({ error: "請先登入" });
+  }
+  const isAdmin = memberData.isAdmin === 1 || (ADMIN_LINE_USER_IDS.length > 0 && ADMIN_LINE_USER_IDS.includes(memberData.lineUserId));
+  if (!isAdmin) {
+    return res.status(403).json({ error: "需要管理員權限才能存取" });
+  }
+  next();
 }
 
 async function startServer() {
@@ -205,7 +230,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/products", (req, res) => {
+  app.post("/api/products", requireAdmin, (req, res) => {
     try {
       const { name, description, detailedDescription, price, maxPrice, imageUrl, galleryImages, category } = req.body;
       
@@ -228,7 +253,7 @@ async function startServer() {
     }
   });
 
-  app.put("/api/products/reorder", (req, res) => {
+  app.put("/api/products/reorder", requireAdmin, (req, res) => {
     try {
       const { updates } = req.body;
       const stmt = db.prepare("UPDATE products SET orderIndex = ? WHERE id = ?");
@@ -247,7 +272,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/products/migrate", (req, res) => {
+  app.post("/api/products/migrate", requireAdmin, (req, res) => {
     try {
       const { products } = req.body;
       if (!Array.isArray(products) || products.length === 0) {
@@ -285,7 +310,7 @@ async function startServer() {
     }
   });
 
-  app.put("/api/products/:id", (req, res) => {
+  app.put("/api/products/:id", requireAdmin, (req, res) => {
     try {
       const id = Number(req.params.id);
       const { name, description, detailedDescription, price, maxPrice, imageUrl, galleryImages, category } = req.body;
@@ -314,7 +339,7 @@ async function startServer() {
     }
   });
 
-  app.delete("/api/products/:id", (req, res) => {
+  app.delete("/api/products/:id", requireAdmin, (req, res) => {
     try {
       const id = Number(req.params.id);
       const stmt = db.prepare("DELETE FROM products WHERE id = ?");
@@ -344,7 +369,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/announcements", (req, res) => {
+  app.post("/api/announcements", requireAdmin, (req, res) => {
     try {
       const { content, isActive = 1 } = req.body;
       if (!content || typeof content !== "string") {
@@ -359,7 +384,7 @@ async function startServer() {
     }
   });
 
-  app.put("/api/announcements/:id", (req, res) => {
+  app.put("/api/announcements/:id", requireAdmin, (req, res) => {
     try {
       const id = Number(req.params.id);
       const { content, isActive } = req.body;
@@ -390,7 +415,7 @@ async function startServer() {
     }
   });
 
-  app.delete("/api/announcements/:id", (req, res) => {
+  app.delete("/api/announcements/:id", requireAdmin, (req, res) => {
     try {
       const id = Number(req.params.id);
       const result = db.prepare("DELETE FROM announcements WHERE id = ?").run(id);
@@ -463,7 +488,7 @@ async function startServer() {
 
       if (member) {
         db.prepare(
-          "UPDATE members SET displayName = ?, pictureUrl = ?, sessionToken = ?, sessionExpiresAt = ?, updatedAt = datetime('now') WHERE id = ?"
+          "UPDATE members SET displayName = ?, pictureUrl = ?, sessionToken = ?, sessionExpiresAt = ?, lastLoginAt = datetime('now'), updatedAt = datetime('now') WHERE id = ?"
         ).run(displayName, pictureUrl, sessionToken, expiresAt, member.id);
       } else {
         const result = db.prepare(
@@ -486,7 +511,8 @@ async function startServer() {
     }
     const member = db.prepare("SELECT id, lineUserId, displayName, pictureUrl, createdAt FROM members WHERE id = ?").get(memberData.id) as Record<string, unknown>;
     if (!member) return res.status(401).json({ error: "Unauthorized" });
-    res.json(member);
+    const isAdmin = memberData.isAdmin === 1 || (ADMIN_LINE_USER_IDS.length > 0 && ADMIN_LINE_USER_IDS.includes(memberData.lineUserId));
+    res.json({ ...member, isAdmin });
   });
 
   app.post("/api/auth/demo", (req, res) => {
@@ -499,7 +525,7 @@ async function startServer() {
       ).run("demo-user", "Demo 會員", null, sessionToken, expiresAt);
       member = db.prepare("SELECT * FROM members WHERE lineUserId = ?").get("demo-user") as Record<string, unknown>;
     } else {
-      db.prepare("UPDATE members SET sessionToken = ?, sessionExpiresAt = ?, updatedAt = datetime('now') WHERE id = ?").run(sessionToken, expiresAt, member.id);
+      db.prepare("UPDATE members SET sessionToken = ?, sessionExpiresAt = ?, lastLoginAt = datetime('now'), updatedAt = datetime('now') WHERE id = ?").run(sessionToken, expiresAt, member.id);
     }
     res.json({
       member: { id: member.id, lineUserId: member.lineUserId, displayName: member.displayName, pictureUrl: member.pictureUrl, createdAt: member.createdAt },
@@ -619,13 +645,27 @@ async function startServer() {
     res.status(201).json({ ...order, items });
   });
 
-  // Admin API (no auth for now - use hidden path)
-  app.get("/api/admin/members", (req, res) => {
-    const rows = db.prepare("SELECT id, lineUserId, displayName, pictureUrl, createdAt FROM members ORDER BY createdAt DESC").all() as Record<string, unknown>[];
+  // Admin API (requires admin LINE account)
+  app.get("/api/admin/members", requireAdmin, (req, res) => {
+    const rows = db.prepare("SELECT id, lineUserId, displayName, pictureUrl, createdAt, lastLoginAt FROM members ORDER BY COALESCE(lastLoginAt, createdAt) DESC").all() as Record<string, unknown>[];
     res.json({ members: rows });
   });
 
-  app.get("/api/admin/orders", (req, res) => {
+  app.delete("/api/admin/members/:id", requireAdmin, (req, res) => {
+    const id = Number(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ error: "Invalid member ID" });
+    db.prepare("DELETE FROM cart_items WHERE memberId = ?").run(id);
+    const orders = db.prepare("SELECT id FROM orders WHERE memberId = ?").all(id) as { id: number }[];
+    for (const o of orders) {
+      db.prepare("DELETE FROM order_items WHERE orderId = ?").run(o.id);
+    }
+    db.prepare("DELETE FROM orders WHERE memberId = ?").run(id);
+    const result = db.prepare("DELETE FROM members WHERE id = ?").run(id);
+    if (result.changes === 0) return res.status(404).json({ error: "Member not found" });
+    res.json({ success: true });
+  });
+
+  app.get("/api/admin/orders", requireAdmin, (req, res) => {
     const rows = db.prepare("SELECT o.*, m.displayName as memberName FROM orders o LEFT JOIN members m ON o.memberId = m.id ORDER BY o.createdAt DESC").all() as Record<string, unknown>[];
     const orders = rows.map((o) => {
       const items = db.prepare("SELECT * FROM order_items WHERE orderId = ?").all(o.id) as Record<string, unknown>[];
@@ -634,7 +674,7 @@ async function startServer() {
     res.json({ orders });
   });
 
-  app.put("/api/admin/orders/:id", (req, res) => {
+  app.put("/api/admin/orders/:id", requireAdmin, (req, res) => {
     const id = Number(req.params.id);
     const { paymentStatus, shippingStatus } = req.body;
     const updates: string[] = [];
@@ -657,7 +697,7 @@ async function startServer() {
     res.json({ ...order, items });
   });
 
-  app.delete("/api/admin/orders/:id", (req, res) => {
+  app.delete("/api/admin/orders/:id", requireAdmin, (req, res) => {
     const id = Number(req.params.id);
     db.prepare("DELETE FROM order_items WHERE orderId = ?").run(id);
     const result = db.prepare("DELETE FROM orders WHERE id = ?").run(id);

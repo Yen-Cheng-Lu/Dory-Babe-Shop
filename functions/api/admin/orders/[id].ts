@@ -3,11 +3,11 @@
  * 路徑: /api/admin/orders/:id
  */
 
-interface Env {
-  DB: D1Database;
-}
+import { requireAdmin, type AdminEnv } from "../../../lib/admin";
 
-export const onRequestPut: PagesFunction<Env> = async (context) => {
+export const onRequestPut: PagesFunction<AdminEnv> = async (context) => {
+  const authResult = await requireAdmin(context);
+  if (!authResult.ok) return authResult.response;
   if (!context.env.DB) return Response.json({ error: "D1 未綁定" }, { status: 503 });
   const id = Number(context.params.id);
   if (isNaN(id)) return Response.json({ error: "Invalid order ID" }, { status: 400 });
@@ -38,7 +38,9 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
   return Response.json({ ...order, items: items || [] }, { headers: { "Access-Control-Allow-Origin": "*" } });
 };
 
-export const onRequestDelete: PagesFunction<Env> = async (context) => {
+export const onRequestDelete: PagesFunction<AdminEnv> = async (context) => {
+  const authResult = await requireAdmin(context);
+  if (!authResult.ok) return authResult.response;
   if (!context.env.DB) return Response.json({ error: "D1 未綁定" }, { status: 503 });
   const id = Number(context.params.id);
   if (isNaN(id)) return Response.json({ error: "Invalid order ID" }, { status: 400 });

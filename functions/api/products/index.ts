@@ -3,9 +3,9 @@
  * 路徑: /api/products
  */
 
-interface Env {
-  DB: D1Database;
-}
+import { requireAdmin, type AdminEnv } from "../../lib/admin";
+
+interface Env extends AdminEnv {}
 
 interface Product {
   id: number;
@@ -92,6 +92,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 };
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
+  const authResult = await requireAdmin(context);
+  if (!authResult.ok) return authResult.response;
   if (!context.env.DB) {
     return Response.json(
       {

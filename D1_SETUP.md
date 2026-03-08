@@ -25,6 +25,13 @@
    - **D1 database:** `dory-babe-shop-db`
 6. 儲存後，**Deployments** → **Retry deployment** 或推送新 commit 觸發部署
 
+### 3. 設定管理員權限（後台存取）
+
+1. 前往 **Settings** → **Environment variables**
+2. 新增變數 **ADMIN_LINE_USER_IDS**，值為具有管理員資格的 LINE User ID
+3. 多個管理員請以逗號分隔，例如：`U1234567890,U9876543210`
+4. 取得 LINE User ID：可從 [LINE Developers Console](https://developers.line.biz/) 的 Channel 設定查看，或登入後從會員清單的 API 回應取得
+
 ---
 
 ## 方式 B：本機手動執行
