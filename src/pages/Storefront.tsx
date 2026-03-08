@@ -106,7 +106,7 @@ export default function Storefront() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <ShoppingBag className="w-6 h-6 text-emerald-600" />
-            <h1 className="text-xl font-semibold text-stone-900">Dory Babee 選物代購</h1>
+            <h1 className="text-xl font-semibold text-stone-900">Dory.Babee 選物代購 | 母嬰用品</h1>
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
             {authLoading ? (

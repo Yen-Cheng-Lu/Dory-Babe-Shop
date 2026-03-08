@@ -56,13 +56,13 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     if (existing) {
       await context.env.DB.prepare(
-        "UPDATE members SET displayName = ?, pictureUrl = ?, sessionToken = ?, sessionExpiresAt = ?, updatedAt = datetime('now') WHERE id = ?"
+        "UPDATE members SET displayName = ?, pictureUrl = ?, sessionToken = ?, sessionExpiresAt = ?, lastLoginAt = datetime('now'), updatedAt = datetime('now') WHERE id = ?"
       )
         .bind(displayName, pictureUrl, sessionToken, expiresAt, existing.id)
         .run();
     } else {
       await context.env.DB.prepare(
-        "INSERT INTO members (lineUserId, displayName, pictureUrl, sessionToken, sessionExpiresAt) VALUES (?, ?, ?, ?, ?)"
+        "INSERT INTO members (lineUserId, displayName, pictureUrl, sessionToken, sessionExpiresAt, lastLoginAt) VALUES (?, ?, ?, ?, ?, datetime('now'))"
       )
         .bind(lineUserId, displayName, pictureUrl, sessionToken, expiresAt)
         .run();

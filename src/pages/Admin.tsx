@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Product, Announcement, Member, Order, OrderItem } from "../types";
-import { getProducts, addProduct, updateProduct, deleteProduct, reorderProducts, migrateFromLocalStorage, getAnnouncements, addAnnouncement, updateAnnouncement, deleteAnnouncement, getAdminMembers, getAdminOrders, updateOrderStatus, deleteAdminOrder } from "../services/api";
+import { getProducts, addProduct, updateProduct, deleteProduct, reorderProducts, migrateFromLocalStorage, getAnnouncements, addAnnouncement, updateAnnouncement, deleteAnnouncement, getAdminMembers, deleteAdminMember, getAdminOrders, updateOrderStatus, deleteAdminOrder } from "../services/api";
 import { Plus, Trash2, Pencil, Loader2, Package, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Database, Activity, Megaphone, Users, ShoppingCart, Check } from "lucide-react";
 import ImageUpload from "../components/ImageUpload";
 
@@ -56,6 +56,7 @@ export default function Admin() {
   const [orderEdits, setOrderEdits] = useState<Record<number, { paymentStatus: string; shippingStatus: string }>>({});
   const [orderSavingId, setOrderSavingId] = useState<number | null>(null);
   const [orderDeletingId, setOrderDeletingId] = useState<number | null>(null);
+  const [memberDeletingId, setMemberDeletingId] = useState<number | null>(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -307,6 +308,20 @@ export default function Admin() {
     return { min, max, hasRange: min !== max };
   };
 
+  const handleMemberDelete = async (memberId: number) => {
+    if (!confirm("確定要刪除此會員嗎？此操作將一併刪除該會員的購物車與訂單，無法復原。")) return;
+    setMemberDeletingId(memberId);
+    try {
+      await deleteAdminMember(memberId);
+      setMembers((prev) => prev.filter((m) => m.id !== memberId));
+    } catch (err) {
+      console.error(err);
+      alert("刪除會員失敗");
+    } finally {
+      setMemberDeletingId(null);
+    }
+  };
+
   const handleOrderDelete = async (orderId: number) => {
     if (!confirm("確定要刪除此訂單嗎？此操作無法復原。")) return;
     setOrderDeletingId(orderId);
@@ -528,8 +543,17 @@ export default function Admin() {
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-stone-900">{m.displayName || "未設定名稱"}</p>
                       <p className="text-sm text-stone-500">Line ID: {m.lineUserId}</p>
-                      <p className="text-xs text-stone-400">加入：{formatDateTime(m.createdAt)}</p>
+                      <p className="text-xs text-stone-400">加入：{formatDateTime(m.createdAt)} · 最後登入：{formatDateTime(m.lastLoginAt)}</p>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => handleMemberDelete(m.id)}
+                      disabled={memberDeletingId === m.id}
+                      className="p-2 text-stone-400 hover:text-red-500 hover:bg-red-50 rounded-lg disabled:opacity-50 transition-colors"
+                      title="刪除會員"
+                    >
+                      {memberDeletingId === m.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                    </button>
                   </li>
                 ))}
               </ul>
@@ -693,7 +717,7 @@ export default function Admin() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Add Product Form */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-2xl shadow-sm border border-stone-200 p-6 sticky top-8">
+            <div className="bg-white rounded-2xl shadow-sm border border-stone-200 p-6 sticky top-8 max-h-[calc(100vh-2rem)] overflow-y-auto">
               <h2 className="text-xl font-semibold text-stone-800 mb-6 flex items-center gap-2">
                 {editingId ? <Pencil className="w-5 h-5 text-emerald-600" /> : <Plus className="w-5 h-5 text-emerald-600" />}
                 {editingId ? "編輯商品" : "新增商品"}

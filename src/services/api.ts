@@ -244,6 +244,10 @@ export const getAdminMembers = async (): Promise<Member[]> => {
   return res.members ?? [];
 };
 
+export const deleteAdminMember = async (id: number): Promise<void> => {
+  await request(`${ADMIN_BASE}/members/${id}`, { method: "DELETE" });
+};
+
 export const getAdminOrders = async (): Promise<Order[]> => {
   const res = await request<{ orders: Order[] }>(`${ADMIN_BASE}/orders`);
   return res.orders ?? [];

@@ -18,7 +18,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     .first<{ id: number; lineUserId: string; displayName: string | null; pictureUrl: string | null; createdAt: string }>();
   if (existing) {
     await context.env.DB.prepare(
-      "UPDATE members SET sessionToken = ?, sessionExpiresAt = ?, updatedAt = datetime('now') WHERE id = ?"
+      "UPDATE members SET sessionToken = ?, sessionExpiresAt = ?, lastLoginAt = datetime('now'), updatedAt = datetime('now') WHERE id = ?"
     )
       .bind(sessionToken, expiresAt, existing.id)
       .run();

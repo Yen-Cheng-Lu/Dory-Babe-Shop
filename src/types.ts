@@ -28,6 +28,7 @@ export interface Member {
   displayName: string | null;
   pictureUrl: string | null;
   createdAt: string;
+  lastLoginAt?: string | null;
 }
 
 export interface CartItem {
