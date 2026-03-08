@@ -224,10 +224,17 @@ export const getOrder = async (id: number): Promise<Order> => {
   return request<Order>(`${ORDERS_BASE}/${id}`);
 };
 
-export const createOrder = async (note?: string): Promise<Order> => {
+export interface CreateOrderPayload {
+  note?: string;
+  recipientName: string;
+  pickupStore: string;
+  phone: string;
+}
+
+export const createOrder = async (payload: CreateOrderPayload): Promise<Order> => {
   return request<Order>(ORDERS_BASE, {
     method: "POST",
-    body: JSON.stringify({ note: note || "" }),
+    body: JSON.stringify(payload),
   });
 };
 

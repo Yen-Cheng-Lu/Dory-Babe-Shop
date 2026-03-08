@@ -11,6 +11,9 @@ export default function Cart() {
   const [items, setItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [note, setNote] = useState("");
+  const [recipientName, setRecipientName] = useState("");
+  const [pickupStore, setPickupStore] = useState("");
+  const [phone, setPhone] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -59,9 +62,29 @@ export default function Cart() {
 
   const handleSubmit = async () => {
     if (items.length === 0 || submitting) return;
+    const name = recipientName.trim();
+    const store = pickupStore.trim();
+    const phoneNum = phone.trim();
+    if (!name) {
+      alert("請填寫收件人姓名");
+      return;
+    }
+    if (!store) {
+      alert("請填寫賣貨便取貨門市");
+      return;
+    }
+    if (!phoneNum) {
+      alert("請填寫手機號碼");
+      return;
+    }
     setSubmitting(true);
     try {
-      const order = await createOrder(note.trim() || undefined);
+      const order = await createOrder({
+        note: note.trim() || undefined,
+        recipientName: name,
+        pickupStore: store,
+        phone: phoneNum,
+      });
       navigate(`/my-orders?created=${order.id}`);
     } catch (err) {
       alert(err instanceof Error ? err.message : "送出訂單失敗");
@@ -168,17 +191,56 @@ export default function Cart() {
               ))}
             </div>
 
-            <div className="bg-white rounded-2xl shadow-sm border border-stone-100 p-6">
-              <label className="block text-sm font-medium text-stone-700 mb-2">
-                訂單備註（選填）
-              </label>
-              <textarea
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="例如：希望週末送達、特殊包裝需求..."
-                className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 resize-none"
-                rows={3}
-              />
+            <div className="bg-white rounded-2xl shadow-sm border border-stone-100 p-6 space-y-4">
+              <h3 className="font-medium text-stone-800">收件資訊（必填）</h3>
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-1">
+                  收件人姓名 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={recipientName}
+                  onChange={(e) => setRecipientName(e.target.value)}
+                  placeholder="請輸入收件人姓名"
+                  className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-1">
+                  賣貨便取貨門市 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={pickupStore}
+                  onChange={(e) => setPickupStore(e.target.value)}
+                  placeholder="請輸入賣貨便取貨門市名稱或代碼"
+                  className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-1">
+                  手機號碼 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="請輸入手機號碼"
+                  className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-2">
+                  訂單備註（選填）
+                </label>
+                <textarea
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="例如：希望週末送達、特殊包裝需求..."
+                  className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 resize-none"
+                  rows={3}
+                />
+              </div>
             </div>
 
             <div className="bg-white rounded-2xl shadow-sm border border-stone-100 p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

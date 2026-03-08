@@ -42,8 +42,17 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   if (!context.env.DB) return Response.json({ error: "D1 未綁定" }, { status: 503 });
   const memberId = await getMemberId(context.env.DB, context.request.headers.get("Authorization"));
   if (!memberId) return Response.json({ error: "Unauthorized" }, { status: 401 });
-  const body = (await context.request.json()) as { note?: string };
+  const body = (await context.request.json()) as { note?: string; recipientName?: string; pickupStore?: string; phone?: string };
   const note = body.note || null;
+  const recipientName = (body.recipientName || "").trim();
+  const pickupStore = (body.pickupStore || "").trim();
+  const phone = (body.phone || "").trim();
+  if (!recipientName || !pickupStore || !phone) {
+    return Response.json(
+      { error: "請填寫收件人姓名、賣貨便取貨門市及手機號碼" },
+      { status: 400 }
+    );
+  }
   const cartRows = await context.env.DB.prepare(
     "SELECT c.*, p.name, p.price, p.maxPrice, p.imageUrl FROM cart_items c JOIN products p ON c.productId = p.id WHERE c.memberId = ?"
   )
@@ -51,8 +60,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     .all();
   const items = cartRows.results || [];
   if (items.length === 0) return Response.json({ error: "Cart is empty" }, { status: 400 });
-  const orderResult = await context.env.DB.prepare("INSERT INTO orders (memberId, note) VALUES (?, ?)")
-    .bind(memberId, note)
+  const orderResult = await context.env.DB.prepare(
+    "INSERT INTO orders (memberId, note, recipientName, pickupStore, phone) VALUES (?, ?, ?, ?, ?)"
+  )
+    .bind(memberId, note, recipientName, pickupStore, phone)
     .run();
   const orderId = orderResult.meta.last_row_id;
   const insertStmt = context.env.DB.prepare(

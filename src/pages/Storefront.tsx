@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Product } from "../types";
-import { getProducts, getAnnouncements, getLineAuthorizeUrl, getLineAuthStatus, demoLogin, getCart } from "../services/api";
+import { getProducts, getAnnouncements, getLineAuthorizeUrl, getLineAuthStatus, getCart } from "../services/api";
 import { useAuth } from "../contexts/AuthContext";
 import { ShoppingBag, Loader2, ChevronLeft, ChevronRight, Megaphone, ShoppingCart, User, LogOut } from "lucide-react";
 import { motion } from "motion/react";
@@ -183,21 +183,6 @@ export default function Storefront() {
                   {loggingIn ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                   LINE 登入
                   {lineConfigured === false && "（未設定）"}
-                </button>
-                <button
-                  onClick={async () => {
-                    setLoggingIn(true);
-                    try {
-                      await demoLogin();
-                      await refresh();
-                    } finally {
-                      setLoggingIn(false);
-                    }
-                  }}
-                  disabled={loggingIn}
-                  className="px-3 py-2 text-sm text-stone-600 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors"
-                >
-                  試用登入
                 </button>
               </div>
             )}

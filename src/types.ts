@@ -54,6 +54,9 @@ export interface Order {
   id: number;
   memberId: number;
   note: string | null;
+  recipientName: string | null;
+  pickupStore: string | null;
+  phone: string | null;
   paymentStatus: "unpaid" | "paid";
   shippingStatus: "unshipped" | "shipped";
   createdAt: string;

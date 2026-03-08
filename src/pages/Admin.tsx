@@ -567,6 +567,20 @@ export default function Admin() {
                       <span className="text-sm text-stone-500">{formatDateTime(order.createdAt)}</span>
                       <span className="text-sm text-stone-600">{(order as Order & { memberName?: string }).memberName || "會員"}</span>
                     </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-2 p-3 bg-stone-50 rounded-lg border border-stone-100">
+                      <p className="text-sm">
+                        <span className="font-medium text-stone-600">收件人：</span>
+                        <span className="text-stone-900">{order.recipientName || "—"}</span>
+                      </p>
+                      <p className="text-sm">
+                        <span className="font-medium text-stone-600">取貨門市：</span>
+                        <span className="text-stone-900">{order.pickupStore || "—"}</span>
+                      </p>
+                      <p className="text-sm">
+                        <span className="font-medium text-stone-600">手機：</span>
+                        <span className="text-stone-900">{order.phone || "—"}</span>
+                      </p>
+                    </div>
                     {order.note && (
                       <p className="text-sm text-stone-600 mb-2">備註：{order.note}</p>
                     )}

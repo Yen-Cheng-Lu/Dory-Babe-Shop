@@ -129,6 +129,13 @@ try {
 } catch (e) {
   /* column may already exist */
 }
+try {
+  db.exec("ALTER TABLE orders ADD COLUMN recipientName TEXT");
+  db.exec("ALTER TABLE orders ADD COLUMN pickupStore TEXT");
+  db.exec("ALTER TABLE orders ADD COLUMN phone TEXT");
+} catch (e) {
+  /* columns may already exist */
+}
 
 function getMemberFromToken(token: string | undefined): { id: number } | null {
   if (!token || !token.startsWith("Bearer ")) return null;
@@ -589,10 +596,16 @@ async function startServer() {
   app.post("/api/orders", (req, res) => {
     const memberData = getMemberFromToken(req.headers.authorization);
     if (!memberData) return res.status(401).json({ error: "Unauthorized" });
-    const { note } = req.body;
+    const { note, recipientName: rn, pickupStore: ps, phone: ph } = req.body;
+    const recipientName = (rn || "").trim();
+    const pickupStore = (ps || "").trim();
+    const phone = (ph || "").trim();
+    if (!recipientName || !pickupStore || !phone) {
+      return res.status(400).json({ error: "請填寫收件人姓名、賣貨便取貨門市及手機號碼" });
+    }
     const cartRows = db.prepare("SELECT c.*, p.name, p.price, p.maxPrice, p.imageUrl FROM cart_items c JOIN products p ON c.productId = p.id WHERE c.memberId = ?").all(memberData.id) as Record<string, unknown>[];
     if (cartRows.length === 0) return res.status(400).json({ error: "Cart is empty" });
-    const orderResult = db.prepare("INSERT INTO orders (memberId, note) VALUES (?, ?)").run(memberData.id, note || null);
+    const orderResult = db.prepare("INSERT INTO orders (memberId, note, recipientName, pickupStore, phone) VALUES (?, ?, ?, ?, ?)").run(memberData.id, note || null, recipientName, pickupStore, phone);
     const orderId = orderResult.lastInsertRowid;
     const insertItem = db.prepare(
       "INSERT INTO order_items (orderId, productId, productName, productPrice, productMaxPrice, quantity, imageUrl) VALUES (?, ?, ?, ?, ?, ?, ?)"
