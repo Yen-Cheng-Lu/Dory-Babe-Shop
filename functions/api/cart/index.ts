@@ -23,7 +23,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const memberId = await getMemberId(context.env.DB, context.request.headers.get("Authorization"));
   if (!memberId) return Response.json({ error: "Unauthorized" }, { status: 401 });
   const { results } = await context.env.DB.prepare(
-    "SELECT c.*, p.name, p.price, p.imageUrl, p.galleryImages FROM cart_items c JOIN products p ON c.productId = p.id WHERE c.memberId = ?"
+    "SELECT c.*, p.name, p.price, p.maxPrice, p.imageUrl, p.galleryImages FROM cart_items c JOIN products p ON c.productId = p.id WHERE c.memberId = ?"
   )
     .bind(memberId)
     .all();
@@ -37,6 +37,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       id: r.productId,
       name: r.name,
       price: r.price,
+      maxPrice: r.maxPrice,
       imageUrl: r.imageUrl,
       galleryImages: typeof r.galleryImages === "string" ? JSON.parse(r.galleryImages || "[]") : r.galleryImages,
     },

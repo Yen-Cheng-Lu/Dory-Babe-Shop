@@ -499,7 +499,7 @@ async function startServer() {
     const memberData = getMemberFromToken(req.headers.authorization);
     if (!memberData) return res.status(401).json({ error: "Unauthorized" });
     const rows = db.prepare(
-      "SELECT c.*, p.name, p.price, p.imageUrl, p.galleryImages FROM cart_items c JOIN products p ON c.productId = p.id WHERE c.memberId = ?"
+      "SELECT c.*, p.name, p.price, p.maxPrice, p.imageUrl, p.galleryImages FROM cart_items c JOIN products p ON c.productId = p.id WHERE c.memberId = ?"
     ).all(memberData.id) as Record<string, unknown>[];
     const items = rows.map((r) => ({
       id: r.id,
@@ -511,6 +511,7 @@ async function startServer() {
         id: r.productId,
         name: r.name,
         price: r.price,
+        maxPrice: r.maxPrice,
         imageUrl: r.imageUrl,
         galleryImages: typeof r.galleryImages === "string" ? JSON.parse(r.galleryImages || "[]") : r.galleryImages,
       },

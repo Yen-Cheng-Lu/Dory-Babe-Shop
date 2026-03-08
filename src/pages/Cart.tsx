@@ -25,6 +25,11 @@ export default function Cart() {
   }, [isLoggedIn]);
 
   const total = items.reduce((sum, it) => sum + (it.product?.price ?? 0) * it.quantity, 0);
+  const hasPriceRange = items.some(
+    (it) =>
+      it.product?.maxPrice != null &&
+      it.product.maxPrice > (it.product?.price ?? 0)
+  );
 
   const handleUpdateQty = async (productId: number, quantity: number) => {
     if (quantity < 1) return;
@@ -172,9 +177,15 @@ export default function Cart() {
             <div className="bg-white rounded-2xl shadow-sm border border-stone-100 p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
                 <span className="text-stone-600">總計：</span>
-                <span className="text-2xl font-bold text-emerald-600 ml-2">
-                  NT$ {total.toLocaleString()}
-                </span>
+                {hasPriceRange ? (
+                  <span className="text-lg font-semibold text-amber-600 ml-2">
+                    請與賣家確認金額
+                  </span>
+                ) : (
+                  <span className="text-2xl font-bold text-emerald-600 ml-2">
+                    NT$ {total.toLocaleString()}
+                  </span>
+                )}
               </div>
               <button
                 type="button"
